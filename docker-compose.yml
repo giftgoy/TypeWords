@@ -1,0 +1,20 @@
+services:
+  typewords:
+    build:
+      context: .
+      args:
+        NPM_REGISTRY: https://registry.npmmirror.com
+    image: typewords:local
+    container_name: typewords
+    ports:
+      - "5567:80"
+    restart: unless-stopped
+    depends_on:
+      - tts
+    # 应用数据保存在浏览器本地（IndexedDB/localStorage），容器本身无持久化需求
+
+  tts:
+    build: ./deploy/tts
+    image: typewords-tts:local
+    container_name: typewords-tts
+    restart: unless-stopped

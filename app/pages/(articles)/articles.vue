@@ -209,8 +209,8 @@ const { data: recommendBookList, isFetching } = useFetch(resourceWrap(DICT_LIST.
 </script>
 
 <template>
-  <BasePage>
-    <div class="card flex flex-col md:flex-row justify-between gap-space p-4 md:p-6">
+  <BasePage class="study-page">
+    <div class="card flex flex-col xl:flex-row justify-between gap-space p-4 md:p-6">
       <div class="">
         <Book
           v-if="base.sbook.id"
@@ -356,5 +356,11 @@ const { data: recommendBookList, isFetching } = useFetch(resourceWrap(DICT_LIST.
   .txt {
     @apply color-gray-500;
   }
+}
+@media (max-width: 1279px) {
+  .study-page :deep(.card) { min-width: 0; }
+}
+@media (max-width: 768px) {
+  .study-page :deep(.card > .flex.justify-between) { flex-wrap: wrap; gap: 12px; }
 }
 </style>

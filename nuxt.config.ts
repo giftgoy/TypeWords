@@ -58,6 +58,8 @@ export default defineNuxtConfig({
       htmlAttrs: {
         lang: 'zh-CN',
       },
+      // 在线 TTS（百度/Google）会拒绝携带本站 Referer 的请求，统一去掉 Referer 保证例句发音可用
+      meta: [{ name: 'referrer', content: 'no-referrer' }],
       link: [{ rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }],
     },
   },
@@ -109,6 +111,8 @@ export default defineNuxtConfig({
       { code: 'tw', language: 'zh-TW', file: 'tw.json', name: '繁體中文' },
     ],
     defaultLocale: 'zh',
+    // 本地部署：关闭浏览器语言探测，界面固定为简体中文（用户可在侧边栏切换）
+    detectBrowserLanguage: false,
     // langDir:'app/i18n/',
     strategy: 'no_prefix',
   },

@@ -13,6 +13,8 @@ dist
 .env*.local
 coverage
 .cache
+.shots
+__pycache__
 apps/vscode/
 apps/vscode-web/src/
 apps/vscode-web/public/

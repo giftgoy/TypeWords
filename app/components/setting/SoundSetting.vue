@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Option, Select, Slider, Switch, VolumeIcon } from '@/base'
 import SettingItem from './SettingItem.vue'
 import SoundMasterControl from './SoundMasterControl.vue'
 import { useSettingStore } from '@/core/stores/setting.ts'
 import { ENV, SoundFileOptions } from '@/core/config/env.ts'
-import { getBrowserKey, getAudioFileUrl, usePlayAudio } from '@/core/hooks/sound.ts'
+import {
+  cancelTtsAudio,
+  getBrowserKey,
+  getAudioFileUrl,
+  getOnlineTtsVoices,
+  getVoicesAsync,
+  usePlayAudio,
+  useTTsPlayAudio,
+  type OnlineTtsVoice,
+} from '@/core/hooks/sound.ts'
 import {
   useSoundMasterSettings,
   SOUND_VOLUME_ITEMS,
@@ -29,21 +38,33 @@ const showSpeedSubsInSections = computed(() => !speedIsUnified.value && !speedEx
 const showVolumeSubsInMaster = computed(() => volumeExpanded.value)
 const showSpeedSubsInMaster = computed(() => speedExpanded.value)
 
-// ---- TTS 声色 ----
+// ---- TTS 音色 ----
 const ttsVoiceList = ref<SpeechSynthesisVoice[]>([])
-const ttsSelectKey = ref(0)
+const onlineVoices = ref<OnlineTtsVoice[]>([])
+const voicesLoading = ref(true)
+const previewState = ref<'idle' | 'loading' | 'playing' | 'error'>('idle')
+const usedFallback = ref(false)
+const ttsPlay = useTTsPlayAudio()
+const { t } = useI18n()
 
-onMounted(() => {
-  if (typeof speechSynthesis === 'undefined') return
-  const load = () => {
-    ttsVoiceList.value = speechSynthesis
-      .getVoices()
-      .filter(v => v.lang.startsWith('en'))
-      .sort((a, b) => (b.localService ? 0 : 1) - (a.localService ? 0 : 1))
-    ttsSelectKey.value++
-  }
-  load()
-  speechSynthesis.onvoiceschanged = load
+function loadSystemVoices() {
+  ttsVoiceList.value = speechSynthesis
+    .getVoices()
+    .filter(v => /^en[-_]/i.test(v.lang))
+    .sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name))
+}
+
+onMounted(async () => {
+  if (typeof speechSynthesis !== 'undefined') speechSynthesis.addEventListener('voiceschanged', loadSystemVoices)
+  const [online, system] = await Promise.all([getOnlineTtsVoices(), getVoicesAsync()])
+  onlineVoices.value = online
+  ttsVoiceList.value = system.filter(v => /^en[-_]/i.test(v.lang))
+  voicesLoading.value = false
+})
+
+onBeforeUnmount(() => {
+  stopPreview()
+  if (typeof speechSynthesis !== 'undefined') speechSynthesis.removeEventListener('voiceschanged', loadSystemVoices)
 })
 
 const browserKey = getBrowserKey()
@@ -64,18 +85,53 @@ const currentTtsVoice = computed({
   },
 })
 
-const exampleText = 'How are you? I am fine, thank you. And you?'
+const selectedVoiceAvailable = computed(
+  () =>
+    !currentTtsVoice.value ||
+    onlineVoices.value.some(v => 'edge:' + v.id === currentTtsVoice.value) ||
+    ttsVoiceList.value.some(v => v.name === currentTtsVoice.value)
+)
+const exampleText = ref('How are you? I am fine, thank you. And you?')
+const previewActive = computed(() => previewState.value === 'loading' || previewState.value === 'playing')
 
-function previewTtsVoice(voiceName: string) {
-  if (typeof speechSynthesis === 'undefined') return
-  speechSynthesis.cancel()
-  const msg = new SpeechSynthesisUtterance(exampleText)
-  msg.lang = 'en-US'
-  msg.volume = settingStore.sentenceSoundVolume / 100
-  msg.rate = settingStore.sentenceSoundSpeed
-  const voice = ttsVoiceList.value.find(v => v.name === voiceName)
-  if (voice) msg.voice = voice
-  speechSynthesis.speak(msg)
+function voiceLabel(voice: OnlineTtsVoice) {
+  return (
+    voice.name +
+    ' · ' +
+    t(voice.lang === 'en-GB' ? 'uk_accent' : 'us_accent') +
+    ' · ' +
+    t(voice.gender === 'female' ? 'tts_female' : 'tts_male')
+  )
+}
+
+function stopPreview() {
+  if (previewActive.value) cancelTtsAudio()
+  previewState.value = 'idle'
+}
+
+watch(currentTtsVoice, stopPreview)
+
+function previewTtsVoice() {
+  if (previewActive.value) return stopPreview()
+  previewState.value = 'loading'
+  usedFallback.value = false
+  void ttsPlay(exampleText.value, {
+    voice: currentTtsVoice.value,
+    rate: settingStore.sentenceSoundSpeed,
+    volume: settingStore.sentenceSoundVolume / 100,
+    onStart: () => {
+      previewState.value = 'playing'
+    },
+    onEnd: () => {
+      if (previewState.value !== 'error') previewState.value = 'idle'
+    },
+    onError: () => {
+      previewState.value = 'error'
+    },
+    onFallback: () => {
+      usedFallback.value = true
+    },
+  })
 }
 </script>
 
@@ -134,27 +190,63 @@ function previewTtsVoice(voiceName: string) {
     <SettingItem v-if="showSpeedSubsInSections" :title="$t('sentence_speed')">
       <Slider v-model="settingStore.sentenceSoundSpeed" :step="0.1" :min="0.5" :max="3" showText showValue />
     </SettingItem>
-    <SettingItem :title="$t('tts_voice_setting_title')" :desc="$t('tts_voice_setting_desc')">
-      <Select
-        :key="ttsSelectKey"
-        v-model="currentTtsVoice"
-        :placeholder="ttsVoiceList.length ? $t('tts_select_placeholder') : $t('tts_no_voice_available')"
-        class="w-80!"
-      >
-        <Option v-for="voice in ttsVoiceList" :key="voice.name" :label="voice.name" :value="voice.name">
-          <div class="flex justify-between items-center w-full">
-            <span class="truncate">{{
-              voice.name + `（${voice.localService ? $t('tts_local_voice') : $t('tts_network_voice')}）`
-            }}</span>
-            <VolumeIcon :time="100" @click="previewTtsVoice(voice.name)" />
-          </div>
-        </Option>
-      </Select>
-    </SettingItem>
-    <div>{{ $t('tts_voice_preview_sentence') }}{{ exampleText }}</div>
-    <div v-if="!currentTtsVoice" class="text-sm text-orange-500 mt-1 mb-2">
-      {{ $t('tts_no_voice_warning') }}
-    </div>
+    <section class="tts-settings" :aria-label="$t('tts_voice_setting_title')">
+      <div class="tts-heading">
+        <h3>{{ $t('tts_voice_setting_title') }}</h3>
+        <span v-if="onlineVoices.length" class="tts-badge">{{ $t('tts_natural_voices') }}</span>
+      </div>
+      <p class="tts-description">{{ $t('tts_voice_setting_desc') }}</p>
+      <label class="tts-label" for="tts-voice">{{ $t('tts_select_placeholder') }}</label>
+      <select id="tts-voice" v-model="currentTtsVoice" class="tts-select" :disabled="voicesLoading">
+        <option value="">{{ $t('tts_auto_voice') }}</option>
+        <optgroup v-if="onlineVoices.length" :label="$t('tts_natural_voices')">
+          <option v-for="voice in onlineVoices" :key="voice.id" :value="'edge:' + voice.id">
+            {{ voiceLabel(voice) }}
+          </option>
+        </optgroup>
+        <optgroup v-if="ttsVoiceList.length" :label="$t('tts_system_voices')">
+          <option v-for="voice in ttsVoiceList" :key="voice.voiceURI" :value="voice.name">
+            {{ voice.name }} · {{ voice.lang }} · {{ $t(voice.localService ? 'tts_local_voice' : 'tts_network_voice') }}
+          </option>
+        </optgroup>
+        <option v-if="!selectedVoiceAvailable" :value="currentTtsVoice">
+          {{ currentTtsVoice }} · {{ $t('tts_voice_unavailable') }}
+        </option>
+      </select>
+      <p class="tts-description" role="status">
+        {{
+          $t(voicesLoading ? 'tts_loading_voices' : onlineVoices.length ? 'tts_online_ready' : 'tts_online_unavailable')
+        }}
+      </p>
+      <label class="tts-label" for="tts-preview-text">{{ $t('tts_voice_preview_sentence') }}</label>
+      <textarea
+        id="tts-preview-text"
+        v-model="exampleText"
+        rows="2"
+        maxlength="500"
+        class="tts-preview-text"
+      ></textarea>
+      <div class="tts-preview-actions">
+        <button type="button" class="tts-preview-button" :disabled="!exampleText.trim()" @click="previewTtsVoice">
+          <IconFluentStop20Regular v-if="previewActive" />
+          <IconBxVolumeFull v-else />
+          {{ $t(previewActive ? 'tts_stop_preview' : 'tts_preview') }}
+        </button>
+        <span class="tts-description" aria-live="polite">
+          {{
+            $t(
+              previewState === 'loading'
+                ? 'tts_loading_audio'
+                : previewState === 'playing'
+                  ? 'tts_playing'
+                  : 'tts_preview_settings'
+            )
+          }}
+        </span>
+      </div>
+      <p v-if="usedFallback" class="tts-description" role="status">{{ $t('tts_using_fallback') }}</p>
+      <p v-if="previewState === 'error'" class="tts-error" role="alert">{{ $t('tts_preview_failed') }}</p>
+    </section>
 
     <!-- 文章音效 -->
     <div class="line"></div>
@@ -208,5 +300,101 @@ function previewTtsVoice(voiceName: string) {
 .line {
   border-bottom: 1px solid var(--color-line, #c4c3c3);
   margin: 0.8rem 0;
+}
+
+.tts-settings {
+  margin: 20px 0;
+}
+.tts-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.tts-heading h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+.tts-badge {
+  font-size: 12px;
+  color: var(--color-link);
+  background: var(--color-third);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.tts-description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-font-3);
+  margin: 8px 0 12px;
+}
+.tts-label {
+  display: block;
+  font-size: 14px;
+  margin: 12px 0 8px;
+}
+.tts-select,
+.tts-preview-text {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--color-input-border);
+  border-radius: 6px;
+  background: var(--color-second);
+  color: var(--color-main-text);
+  font: inherit;
+  padding: 10px 12px;
+  &:focus-visible {
+    outline: 2px solid var(--color-select-bg);
+    outline-offset: 2px;
+  }
+}
+.tts-select {
+  min-height: 44px;
+  text-overflow: ellipsis;
+}
+.tts-preview-text {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.6;
+}
+.tts-preview-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+.tts-preview-actions .tts-description {
+  margin: 0;
+}
+.tts-preview-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 16px;
+  font: inherit;
+  color: var(--color-main-text);
+  background: var(--color-third);
+  border: 1px solid var(--color-input-border);
+  border-radius: 6px;
+  cursor: pointer;
+  &:hover {
+    background: var(--color-fourth);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-select-bg);
+    outline-offset: 2px;
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+.tts-error {
+  color: #d9564d;
+  font-size: 14px;
 }
 </style>

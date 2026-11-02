@@ -25,7 +25,7 @@ import { WordPracticeType } from '@/core/types/enum.ts'
 import { computed } from 'vue'
 import { watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getBrowserKey, useTTsPlayAudio } from '@/core/hooks/sound.ts'
+import { useTTsPlayAudio } from '@/core/hooks/sound.ts'
 
 const { t: $t } = useI18n()
 
@@ -80,29 +80,24 @@ function noticePlaySentence(index: number) {
 }
 
 function playTtsWithGuide(text: string, onEnd?: () => void) {
-  if (!ttsVoiceHintShown) {
-    const hasVoice = settingStore.ttsVoiceMap?.some(v => v.key === getBrowserKey() && v.voice)
-    if (!hasVoice) {
-      ttsVoiceHintShown = true
-      const ins = Toast.warning(
-        '例句默认使用浏览器内置 TTS 发音，若无声请前往「设置 → 音效设置 → TTS 声色」选择可用声色',
-        {
-          duration: 10000,
-          action: {
-            text: '设置',
-            onClick: () => {
-              router.push('/setting?index=4')
-              ins.close()
-            },
-          },
-        }
-      )
-    }
-  }
   ttsPlayAudio(text, {
     onEnd,
     volume: settingStore.sentenceSoundVolume / 100,
     rate: settingStore.sentenceSoundSpeed,
+    onError: () => {
+      if (ttsVoiceHintShown) return
+      ttsVoiceHintShown = true
+      const ins = Toast.warning('例句播放失败，请检查网络或在音效设置中切换 TTS 音色', {
+        duration: 6000,
+        action: {
+          text: '设置',
+          onClick: () => {
+            router.push('/setting?index=4')
+            ins.close()
+          },
+        },
+      })
+    },
   })
 }
 

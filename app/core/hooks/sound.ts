@@ -4,6 +4,7 @@ import { ref } from 'vue'
 
 import { ENV, PronunciationApi, SoundFileOptions } from '../config/env'
 import { Toast } from '@/base'
+import { withAppBaseURL } from '../utils/base-url'
 
 /**
  * 获取当前浏览器的 OS+浏览器 组合 key，用于 ttsVoiceMap 的索引
@@ -153,6 +154,72 @@ let cachedWordAudio: HTMLAudioElement | null = null
 let wordPlaybackGeneration = 0
 let ttsPlaybackGeneration = 0
 
+// ---- 在线 TTS 回退（浏览器/内嵌窗口没有系统语音时使用） ----
+// 百度翻译 TTS：国内可直连，支持整句；Google TTS 作为二次回退
+const NETWORK_TTS_BAIDU = 'https://fanyi.baidu.com/gettts?lan=en&spd=3&source=web&text='
+const NETWORK_TTS_GOOGLE = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q='
+
+let cachedTextAudio: HTMLAudioElement | null = null
+
+function getCachedTextAudio(): HTMLAudioElement | null {
+  if (!cachedTextAudio && typeof Audio !== 'undefined') {
+    cachedTextAudio = new Audio()
+  }
+  return cachedTextAudio
+}
+
+function stopNetworkTts() {
+  const audio = getCachedTextAudio()
+  if (!audio) return
+  audio.onended = null
+  audio.onerror = null
+  audio.onplaying = null
+  audio.pause()
+  audio.currentTime = 0
+}
+
+function playNetworkTts(
+  text: string,
+  options: TTsPlayOptions,
+  generation: number,
+  urls = [NETWORK_TTS_BAIDU + encodeURIComponent(text), NETWORK_TTS_GOOGLE + encodeURIComponent(text)],
+  onFailure?: () => void
+) {
+  const audio = getCachedTextAudio()
+  if (!audio) {
+    options.onError?.()
+    options.onEnd?.()
+    return
+  }
+  const [url, ...rest] = urls
+  let settled = false
+  const finish = () => {
+    if (settled || generation !== ttsPlaybackGeneration) return
+    settled = true
+    options.onEnd?.()
+  }
+  const fail = () => {
+    if (settled || generation !== ttsPlaybackGeneration) return
+    settled = true
+    if (rest.length) playNetworkTts(text, options, generation, rest, onFailure)
+    else if (onFailure) onFailure()
+    else {
+      options.onError?.()
+      options.onEnd?.()
+    }
+  }
+  audio.onended = finish
+  audio.onerror = fail
+  audio.onplaying = () => {
+    if (generation === ttsPlaybackGeneration) options.onStart?.()
+  }
+  audio.src = url
+  audio.volume = options.volume ?? 1
+  audio.playbackRate = options.rate ?? 1
+  audio.preservesPitch = true
+  void audio.play().catch(fail)
+}
+
 function getCachedWordAudio(): HTMLAudioElement | null {
   if (!cachedWordAudio && typeof Audio !== 'undefined') {
     cachedWordAudio = new Audio()
@@ -162,11 +229,7 @@ function getCachedWordAudio(): HTMLAudioElement | null {
 
 export function cancelWordPracticeAudio() {
   wordPlaybackGeneration++
-  ttsPlaybackGeneration++
-  if (typeof speechSynthesis !== 'undefined') {
-    speechSynthesis.pause()
-    speechSynthesis.cancel()
-  }
+  cancelTtsAudio()
   const wordAudio = getCachedWordAudio()
   if (wordAudio) {
     wordAudio.onended = null
@@ -174,6 +237,14 @@ export function cancelWordPracticeAudio() {
     wordAudio.pause()
     wordAudio.currentTime = 0
   }
+}
+
+export function cancelTtsAudio() {
+  ttsPlaybackGeneration++
+  if (typeof speechSynthesis !== 'undefined') {
+    speechSynthesis.cancel()
+  }
+  stopNetworkTts()
 }
 
 export function usePlayWordAudio() {
@@ -233,15 +304,37 @@ export function usePlayWordAudio() {
   return playAudio
 }
 
-function getVoicesAsync() {
+export function getVoicesAsync(timeout = 1200): Promise<SpeechSynthesisVoice[]> {
   return new Promise(resolve => {
+    if (typeof speechSynthesis === 'undefined') return resolve([])
     const voices = speechSynthesis.getVoices()
     if (voices.length) return resolve(voices)
-
-    speechSynthesis.onvoiceschanged = () => {
+    const finish = () => {
+      clearTimeout(timer)
+      speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged)
       resolve(speechSynthesis.getVoices())
     }
+    const onVoicesChanged = () => {
+      if (speechSynthesis.getVoices().length) finish()
+    }
+    const timer = setTimeout(finish, timeout)
+    speechSynthesis.addEventListener('voiceschanged', onVoicesChanged)
   })
+}
+
+export interface OnlineTtsVoice {
+  id: string
+  name: string
+  lang: string
+  gender: 'female' | 'male'
+}
+
+let onlineVoicesPromise: Promise<OnlineTtsVoice[]> | undefined
+export function getOnlineTtsVoices(): Promise<OnlineTtsVoice[]> {
+  return (onlineVoicesPromise ??= fetch(withAppBaseURL('/api/tts/voices'), { signal: AbortSignal.timeout(3000) })
+    .then(response => (response.ok ? response.json() : []))
+    .then(voices => (Array.isArray(voices) ? voices : []))
+    .catch(() => []))
 }
 
 export interface TTsPlayOptions {
@@ -249,42 +342,70 @@ export interface TTsPlayOptions {
   volume?: number
   pitch?: number
   lang?: string
+  voice?: string
+  onStart?: () => void
   onEnd?: () => void
+  onError?: () => void
+  onFallback?: () => void
 }
 
 export function useTTsPlayAudio() {
   const settingStore = useSettingStore()
 
-  function play(text: string, options: TTsPlayOptions = {}) {
-    if (!text || typeof speechSynthesis === 'undefined') return
-    const generation = ++ttsPlaybackGeneration
-    speechSynthesis.cancel() // 防止 Chrome 队列卡死
-    let msg = new SpeechSynthesisUtterance(text)
-    msg.rate = options.rate ?? settingStore.wordSoundSpeed
-    msg.volume = options.volume ?? settingStore.wordSoundVolume / 100
-    msg.pitch = options.pitch ?? 1
-    msg.lang = options.lang ?? 'en-US'
-    msg.onend = () => options.onEnd?.()
-    msg.onerror = () => options.onEnd?.()
-    getVoicesAsync().then((voices: any[]) => {
+  async function play(text: string, options: TTsPlayOptions = {}) {
+    if (!text.trim()) return
+    cancelTtsAudio()
+    const generation = ttsPlaybackGeneration
+    const resolved = {
+      ...options,
+      rate: options.rate ?? settingStore.wordSoundSpeed,
+      volume: options.volume ?? settingStore.wordSoundVolume / 100,
+      lang: options.lang ?? (settingStore.soundType === 'uk' ? 'en-GB' : 'en-US'),
+    }
+    const selected = options.voice ?? settingStore.ttsVoiceMap?.find(v => v.key === getBrowserKey())?.voice ?? ''
+    const legacy = () => playNetworkTts(text, resolved, generation)
+    const playSystem = async () => {
+      const voices = await getVoicesAsync()
       if (generation !== ttsPlaybackGeneration) return
-      // 优先使用用户在当前浏览器配置的声色
-      const browserKey = getBrowserKey()
-      const savedVoiceName = settingStore?.ttsVoiceMap?.find(v => v.key === browserKey)?.voice
-      if (savedVoiceName) {
-        const savedVoice = voices.find(v => v.name === savedVoiceName)
-        if (savedVoice) {
-          msg.voice = savedVoice
-          speechSynthesis.speak(msg)
-          return
-        }
+      const english = voices.filter(v => /^en[-_]/i.test(v.lang))
+      const voice = english.find(v => v.name === selected) ?? english.find(v => v.lang === resolved.lang) ?? english[0]
+      if (!voice) return legacy()
+      const msg = new SpeechSynthesisUtterance(text)
+      msg.voice = voice
+      msg.lang = voice.lang
+      msg.rate = resolved.rate
+      msg.volume = resolved.volume
+      msg.pitch = options.pitch ?? 1
+      let settled = false
+      msg.onstart = () => {
+        if (generation === ttsPlaybackGeneration) options.onStart?.()
       }
-      // 回退：优先找 Emma / US，否则取第一个英文声色
-      let voiceList = voices.filter(v => v.lang === 'en-US')
-      if (voiceList && voiceList.length) {
-        msg.voice = voiceList.find(v => v.name.includes('US') || v.name.includes('Emma')) ?? voiceList[0]
+      msg.onend = () => {
+        if (settled || generation !== ttsPlaybackGeneration) return
+        settled = true
+        options.onEnd?.()
       }
+      msg.onerror = () => {
+        if (settled || generation !== ttsPlaybackGeneration) return
+        settled = true
+        options.onFallback?.()
+        legacy()
+      }
+      speechSynthesis.resume()
       speechSynthesis.speak(msg)
+    }
+    // Existing system voice selections remain valid. Automatic mode prefers natural voices.
+    if (selected && !selected.startsWith('edge:')) return playSystem()
+    const onlineVoices = await getOnlineTtsVoices()
+    if (generation !== ttsPlaybackGeneration) return
+    const voice =
+      onlineVoices.find(v => 'edge:' + v.id === selected) ??
+      onlineVoices.find(v => v.lang === resolved.lang && v.gender === 'female')
+    if (!voice) return playSystem()
+    const query = new URLSearchParams({ text, voice: voice.id })
+    playNetworkTts(text, resolved, generation, [withAppBaseURL('/api/tts/speak') + '?' + query], () => {
+      options.onFallback?.()
+      void playSystem()
     })
   }
 

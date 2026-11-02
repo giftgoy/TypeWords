@@ -12,16 +12,20 @@
 
 <style scoped lang="scss">
 .page {
-  min-height: calc(100vh - 1.2rem);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding-inline: 1rem;
+  min-height: calc(100dvh - 1.2rem);
   margin-top: 1.2rem;
 }
 
 
 @media (max-width: 768px) {
   .page {
-    width: 100vw !important;
+    width: 100%;
     margin-top: 0.5rem;
-    min-height: calc(100vh - 0.5rem);
+    min-height: calc(100dvh - var(--mobile-nav-height) - 1.5rem);
     padding: 0 0.5rem;
     box-sizing: border-box;
   }
@@ -31,7 +35,7 @@
 @media (max-width: 480px) {
   .page {
     margin-top: 0.3rem;
-    min-height: calc(100vh - 0.3rem);
+    min-height: calc(100dvh - var(--mobile-nav-height) - 1rem);
     padding: 0 0.3rem;
   }
 }

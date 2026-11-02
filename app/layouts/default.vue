@@ -19,19 +19,23 @@ const router = useRouter()
 const { toggleTheme, getTheme, setTheme } = useTheme()
 const runtimeStore = useRuntimeStore()
 const settingStore = useSettingStore()
-let expand = $ref(false)
+const expand = $computed(() => settingStore.sideExpand)
 const init = useInit()
 
-function toggleExpand(n: boolean) {
-  expand = n
-  document.documentElement.style.setProperty('--aside-width', n ? '14rem' : '4.5rem')
-}
+watch(
+  () => settingStore.sideExpand,
+  n => {
+    if (import.meta.client) {
+      document.documentElement.style.setProperty('--aside-width', n ? '14rem' : '4.5rem')
+    }
+  },
+  { immediate: true }
+)
 
 watch(
   () => settingStore.load,
   n => {
     if (!n) return
-    toggleExpand(settingStore.sideExpand)
     setTheme(settingStore.theme)
   }
 )
@@ -55,51 +59,46 @@ onMounted(() => {
   window.umami?.track('sync', { check: Supabase.check() })
 })
 
-function onMouseEnter() {
-  !settingStore.sideExpand && toggleExpand(true)
-}
-
-function onMouseLeave() {
-  !settingStore.sideExpand && toggleExpand(false)
-}
 </script>
 
 <template>
-  <div class="layout anim">
+  <div class="layout anim" :class="{ 'mobile-nav-collapsed': settingStore.mobileNavCollapsed }">
     <!--    第一个aside 占位用-->
     <div class="aside space"></div>
-    <div class="aside fixed" :class="!expand && 'hidden-span'" @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">
+    <nav id="side-navigation" class="aside fixed" :class="!expand && 'hidden-span'" :aria-label="$t('navigation')">
       <div class="top p-4">
-        <div v-if="expand" class="flex justify-between">
-          <Logo />
-          <BaseIcon
-            class="transform-scale-80 border border-1 border-solid border-gray"
+        <div class="sidebar-header">
+          <Logo v-if="expand" />
+          <button
+            type="button"
+            class="nav-button"
+            :title="$t(expand ? 'collapse_navigation' : 'expand_navigation')"
+            :aria-label="$t(expand ? 'collapse_navigation' : 'expand_navigation')"
+            :aria-expanded="expand"
+            aria-controls="side-navigation"
             @click="settingStore.sideExpand = !settingStore.sideExpand"
           >
-            <IconFluentPin24Filled
-              v-if="settingStore.sideExpand"
-              class="flex-shrink-0 -transform-rotate-45 color-gray"
-            />
-            <IconFluentPin20Regular v-else class="flex-shrink-0 -transform-rotate-45" />
-          </BaseIcon>
+            <IconFluentChevronLeft20Regular v-if="expand" />
+            <IconFluentChevronRight20Regular v-else />
+          </button>
         </div>
-        <NuxtLink to="/words" class="row">
+        <NuxtLink to="/words" class="row" :title="$t('words')" :aria-label="$t('words')">
           <IconFluentTextUnderlineDouble20Regular />
           <span>{{ $t('words') }}</span>
         </NuxtLink>
-        <NuxtLink id="article" to="/articles" class="row">
+        <NuxtLink id="article" to="/articles" class="row" :title="$t('articles')" :aria-label="$t('articles')">
           <IconFluentBookLetter20Regular />
           <span>{{ $t('articles') }}</span>
         </NuxtLink>
-        <NuxtLink to="/feedback" class="row">
+        <NuxtLink to="/feedback" class="row" :title="$t('feedback')" :aria-label="$t('feedback')">
           <IconFluentCommentEdit20Regular />
           <span>{{ $t('feedback') }}</span>
         </NuxtLink>
-        <NuxtLink to="/doc" class="row">
+        <NuxtLink to="/doc" class="row" :title="$t('document')" :aria-label="$t('document')">
           <IconFluentDocument20Regular />
           <span>{{ $t('document') }}</span>
         </NuxtLink>
-        <NuxtLink to="/help" class="row">
+        <NuxtLink to="/help" class="row" :title="$t('help')" :aria-label="$t('help')">
           <IconFluentQuestionCircle20Regular />
           <span>{{ $t('help') }}</span>
         </NuxtLink>
@@ -109,17 +108,17 @@ function onMouseLeave() {
         <!--        </div>-->
       </div>
       <div class="px-4 pb-2 border-0 border-t-1 border-solid border-[var(--color-line)]">
-        <NuxtLink to="/setting" class="row">
+        <NuxtLink to="/setting" class="row" :title="$t('setting')" :aria-label="$t('setting')">
           <IconFluentSettings20Regular />
           <span>{{ $t('setting') }}</span>
           <div class="red-point" :class="!settingStore.sideExpand && 'top-1 right-0'" v-if="runtimeStore.isError"></div>
         </NuxtLink>
       </div>
-    </div>
+    </nav>
 
     <!-- 移动端顶部菜单栏 -->
     <div class="mobile-top-nav" :class="{ collapsed: settingStore.mobileNavCollapsed }">
-      <div class="nav-items">
+      <div id="mobile-navigation" class="nav-items" v-show="!settingStore.mobileNavCollapsed">
         <div class="nav-item" @click="router.push('/')" :class="{ active: route.path === '/' }">
           <IconFluentHome20Regular />
           <span>{{ $t('home_page') }}</span>
@@ -138,10 +137,18 @@ function onMouseLeave() {
           <div class="red-point" v-if="runtimeStore.isError"></div>
         </div>
       </div>
-      <div class="nav-toggle" @click="settingStore.mobileNavCollapsed = !settingStore.mobileNavCollapsed">
+      <button
+        type="button"
+        class="nav-toggle nav-button"
+        :aria-label="$t(settingStore.mobileNavCollapsed ? 'expand_navigation' : 'collapse_navigation')"
+        :aria-expanded="!settingStore.mobileNavCollapsed"
+        aria-controls="mobile-navigation"
+        @click="settingStore.mobileNavCollapsed = !settingStore.mobileNavCollapsed"
+      >
+        <span>{{ $t(settingStore.mobileNavCollapsed ? 'expand_navigation' : 'collapse_navigation') }}</span>
         <IconFluentChevronDown20Filled v-if="!settingStore.mobileNavCollapsed" />
         <IconFluentChevronUp20Filled v-else />
-      </div>
+      </button>
     </div>
 
     <IeDialog />
@@ -197,27 +204,28 @@ function onMouseLeave() {
 <style scoped lang="scss">
 .layout {
   width: 100%;
-  height: 100%;
+  min-height: 100dvh;
   display: flex;
   background: var(--color-primary);
 }
 
 .aside {
   background: var(--color-second);
-  height: 100vh;
+  height: 100dvh;
+  flex-shrink: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-shadow: rgb(0 0 0 / 3%) 0px 0px 12px 0px;
   width: var(--aside-width);
-  transition: all 0.3s;
+  transition: width 0.2s;
   z-index: 2;
   overflow: hidden;
 
   &.hidden-span {
     span {
-      opacity: 0;
+      display: none;
     }
   }
   .row {
@@ -238,130 +246,82 @@ function onMouseLeave() {
   }
 }
 
-// 移动端顶部菜单栏
-.mobile-top-nav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: var(--color-second);
-  border-bottom: 1px solid var(--color-item-border);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  transition: all 0.3s ease;
 
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  gap: 4px;
+  :deep(img) { max-width: 100%; height: auto; }
+  > :first-child:not(button) { min-width: 0; }
+}
+.nav-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: var(--color-second);
+  color: var(--color-main-text);
+  cursor: pointer;
+  font: inherit;
+  &:hover { background: var(--color-fourth); }
+  &:focus-visible { outline: 2px solid var(--color-select-bg); outline-offset: 2px; }
+  svg { font-size: 20px; }
+}
+.hidden-span .top { padding-inline: 14px; }
+.main-content { min-width: 0; }
+.mobile-top-nav { display: none; }
+@media (max-width: 768px) {
+  .layout { --mobile-nav-height: 108px; }
+  .mobile-nav-collapsed { --mobile-nav-height: 44px; }
+  .aside { display: none; }
+  .main-content {
+    width: 100%;
+    padding-top: calc(var(--mobile-nav-height) + 12px);
+  }
+  .mobile-top-nav {
+    display: block;
+    position: fixed;
+    inset: 0 0 auto;
+    background: var(--color-second);
+    border-bottom: 1px solid var(--color-line);
+    z-index: 1000;
+  }
   .nav-items {
     display: flex;
     justify-content: space-around;
-    padding: 0.5rem 0;
-
-    .nav-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 0.5rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      min-height: 44px;
-      min-width: 44px;
-      justify-content: center;
-      position: relative;
-
-      svg {
-        font-size: 1.2rem;
-        margin-bottom: 0.2rem;
-        color: var(--color-main-text);
-      }
-
-      span {
-        font-size: 0.7rem;
-        color: var(--color-main-text);
-        text-align: center;
-      }
-
-      &.active {
-        svg,
-        span {
-          color: var(--color-select-bg);
-        }
-      }
-
-      &:active {
-        transform: scale(0.95);
-      }
-
-      .red-point {
-        position: absolute;
-        top: 0.2rem;
-        right: 0.2rem;
-        width: 0.4rem;
-        height: 0.4rem;
-        background: #ff4444;
-        border-radius: 50%;
-      }
-    }
+    height: 64px;
   }
-
-  .nav-toggle {
-    position: absolute;
-    bottom: -1.5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--color-second);
-    border: 1px solid var(--color-item-border);
-    border-top: none;
-    border-radius: 0 0 0.5rem 0.5rem;
-    padding: 0.3rem 0.8rem;
+  .nav-item {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 44px;
     cursor: pointer;
-    transition: all 0.3s;
-
-    svg {
-      font-size: 1rem;
-      color: var(--color-main-text);
-    }
-
-    &:active {
-      transform: translateX(-50%) scale(0.95);
-    }
+    position: relative;
+    font-size: 12px;
+    svg { font-size: 20px; }
+    &.active { color: var(--color-select-bg); }
   }
-
-  &.collapsed {
-    transform: translateY(calc(-100% + 1.5rem));
-
-    .nav-items {
-      opacity: 0;
-      pointer-events: none;
-    }
-  }
-}
-
-.main-content {
-  // 移动端时为主内容区域添加顶部内边距，避免被顶部菜单遮挡
-  @media (max-width: 768px) {
-    padding-top: 4rem;
-  }
-}
-
-// 移动端隐藏左侧菜单栏
-@media (max-width: 768px) {
-  .aside {
-    display: none;
-  }
-
-  .aside.space {
-    display: none;
-  }
-
-  .main-content {
+  .nav-toggle {
     width: 100%;
-    margin-left: 0;
+    border: 0;
+    border-top: 1px solid var(--color-line);
+    border-radius: 0;
+    gap: 8px;
+    font-size: 14px;
   }
 }
-
-// 桌面端隐藏移动端顶部菜单栏
-@media (min-width: 769px) {
-  .mobile-top-nav {
-    display: none;
-  }
+@media (prefers-reduced-motion: reduce) {
+  .aside { transition: none; }
 }
 </style>

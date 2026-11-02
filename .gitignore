@@ -33,6 +33,10 @@ report.html
 # Misc
 .fleet
 
+# 本地部署验证产物（截图 / CDP 脚本 / 构建日志）
+.shots/
+docker-build.log
+
 # Local env files
 .env
 .env.*
@@ -40,3 +44,4 @@ report.html
 public/vscode
 apps/TypeWordsMiniApp
 *.tsbuildinfo
+/deploy/tts/__pycache__/

@@ -569,9 +569,9 @@ function disable360() {
 
 <template>
   <BasePage>
-    <div class="setting text-md card flex flex-col" style="height: calc(100vh - 3rem)">
+    <div class="setting text-md card flex flex-col">
       <div class="page-title text-align-center">{{ $t('setting') }}</div>
-      <div class="flex flex-1 overflow-hidden gap-4">
+      <div class="setting-body flex flex-1 overflow-hidden gap-4">
         <div class="left">
           <div class="tabs">
             <div class="tab" :class="tabIndex === 0 && 'active'" @click="tabIndex = 0">
@@ -847,6 +847,8 @@ function disable360() {
 }
 
 .setting {
+  height: calc(100dvh - 3rem);
+  .content { min-width: 0; }
   .left {
     display: flex;
     flex-direction: column;
@@ -950,6 +952,24 @@ function disable360() {
     .line {
       border-bottom: 1px solid #c4c3c3;
     }
+  }
+}
+@media (max-width: 768px) {
+  .setting {
+    height: calc(100dvh - var(--mobile-nav-height) - 2rem);
+    margin-bottom: 0;
+    padding: 12px;
+    .setting-body { flex-direction: column; min-height: 0; gap: 12px; }
+    .left { align-items: stretch; min-width: 0; flex-shrink: 0; }
+    .left .tabs {
+      flex-direction: row;
+      overflow-x: auto;
+      gap: 4px;
+      padding: 4px;
+      .tab { flex-shrink: 0; min-height: 44px; box-sizing: border-box; padding: 8px; }
+    }
+    .col-line { display: none; }
+    .content { padding-right: 0; overflow-wrap: anywhere; }
   }
 }
 </style>

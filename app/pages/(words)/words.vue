@@ -559,14 +559,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <BasePage>
+  <BasePage class="study-page">
     <div class="my-100 text-4xl font-bold text-red" v-if="isOldHost">
       已启用新域名
       <a class="mr-4" :href="`${Origin}/words?from_old_site=1`">{{ Origin }}</a
       >当前 2study.top 域名将在 7 月 3 号停止使用
     </div>
 
-    <div class="card flex flex-col md:flex-row gap-4">
+    <div class="card flex flex-col xl:flex-row gap-4">
       <div class="flex-1 flex flex-col justify-between">
         <div class="flex gap-3">
           <div class="p-1 center rounded-full bg-white">
@@ -629,7 +629,7 @@ onUnmounted(() => {
         </div>
       </div>
       <div class="flex-1 mt-4 md:mt-0" :class="!store.sdict.id && 'opacity-30 cursor-not-allowed'">
-        <div class="flex justify-between">
+        <div class="task-heading flex justify-between">
           <div class="flex items-center gap-2">
             <div class="p-2 center rounded-full bg-white">
               <IconFluentStar20Filled class="text-lg color-amber" />
@@ -684,7 +684,7 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
-        <div class="flex items-end mt-4 gap-4 btn-no-margin">
+        <div class="flex items-end flex-wrap mt-4 gap-4 btn-no-margin">
           <OptionButton
             :class="settingStore.wordPracticeMode !== WordPracticeMode.Free ? 'flex-1 orange-btn' : 'primary-btn'"
           >
@@ -769,10 +769,10 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div class="card flex flex-col md:flex-row gap-4 xl:gap-20 p-4 md:p-6">
+    <div class="card flex flex-col xl:flex-row gap-4 xl:gap-20 p-4 md:p-6">
       <div class="flex-1 flex flex-col gap-3 min-w-0">
         <div class="title">统计</div>
-        <div class="flex gap-3 items-center w-full">
+        <div class="flex gap-3 items-stretch w-full">
           <div class="stat2">
             <div class="num">{{ todayTotalSpend }}</div>
             <div class="txt">{{ $t('today_study_time') }}</div>
@@ -929,5 +929,16 @@ onUnmounted(() => {
   .num {
     @apply text-2xl break-keep;
   }
+}
+@media (max-width: 1279px) {
+  .study-page :deep(.card) { min-width: 0; }
+}
+@media (max-width: 768px) {
+  .study-page :deep(.card > .flex.justify-between) { flex-wrap: wrap; gap: 12px; }
+  .task-heading { flex-wrap: wrap; gap: 8px; }
+  .stat .num { flex-wrap: wrap; font-size: 1.75rem; }
+  .stat2 { min-width: 0; }
+  .stat2 .num { white-space: normal; overflow-wrap: anywhere; }
+  .stat2 .txt { font-size: 14px; }
 }
 </style>
