@@ -34,8 +34,11 @@ function setup({ voices = [], online = true, selected = '' } = {}) {
       constructor() {
         audio.push(this)
       }
-      pause() {}
+      pause() {
+        this.paused = true
+      }
       play() {
+        this.paused = false
         return Promise.resolve()
       }
     },
@@ -48,6 +51,8 @@ function setup({ voices = [], online = true, selected = '' } = {}) {
     useSettingStore: () => ({
       wordSoundSpeed: 1.2,
       wordSoundVolume: 65,
+      articleSoundVolume: 75,
+      articleSoundSpeed: 1.1,
       soundType: 'uk',
       ttsVoiceMap: [{ key: 'windows+chrome', voice: selected }],
     }),
@@ -60,6 +65,7 @@ function setup({ voices = [], online = true, selected = '' } = {}) {
   vm.runInContext(source + '\nthis.api = { useTTsPlayAudio, cancelTtsAudio, getVoicesAsync };', context)
   return {
     ...context.api,
+    context,
     audio,
     spoken,
     listeners,
@@ -129,4 +135,24 @@ test('non-English system voices do not suppress the online fallback', async () =
   assert.equal(env.spoken.length, 0)
   assert.match(env.audio[0].src, /fanyi.baidu.com/)
   assert.equal(env.audio[0].volume, 0.65)
+})
+
+test('switching from title TTS to an article recording stops obsolete network speech', async () => {
+  const env = setup()
+  let ended = 0
+  await env.useTTsPlayAudio()('Article title', { onEnd: () => ended++ })
+  const oldEnd = env.audio[0].onended
+  const articleSource = stripTypeScriptTypes(
+    readFileSync(new URL('../app/core/hooks/article.ts', import.meta.url), 'utf8')
+  )
+    .replaceAll('\r\n', '\n')
+    .replace(/^import .*\n/gm, '')
+    .replace(/^export /gm, '')
+  vm.runInContext(articleSource + '\nthis.articleAudio = usePlayArticleTextAudio();', env.context)
+  const recording = { src: 'recording.mp3', pause() {}, play() {} }
+  env.context.articleAudio.playArticleTextAudio({ text: 'Question', start: 1, end: -1 }, recording)
+  assert.equal(env.audio[0].paused, true)
+  assert.equal(recording.currentTime, 1)
+  oldEnd()
+  assert.equal(ended, 0)
 })
