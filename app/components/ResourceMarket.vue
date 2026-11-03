@@ -82,7 +82,21 @@ async function loadCatalog() {
     const url = words.value ? DICT_LIST.WORD.ALL : DICT_LIST.ARTICLE.ALL
     const response = await fetch(resourceWrap(url), { cache: 'no-cache', signal: AbortSignal.timeout(15000) })
     if (!response.ok) throw new Error(`目录读取失败（${response.status}）`)
-    resources.value = readMarketCatalog(await response.json())
+    const catalog = readMarketCatalog(await response.json())
+    // 每日自动拉取的文章（由 articles 容器写入 feed 目录），失败了不影响内置资源
+    if (!words.value) {
+      try {
+        const feed = await fetch(resourceWrap('/dicts/en/article/feed/index.json'), { cache: 'no-cache', signal: AbortSignal.timeout(8000) })
+        if (feed.ok) {
+          const extra = readMarketCatalog(await feed.json())
+          const known = new Set(catalog.map(item => item.id))
+          catalog.push(...extra.filter(item => !known.has(item.id)))
+        }
+      } catch {
+        /* feed 未启用时忽略 */
+      }
+    }
+    resources.value = catalog
   } catch (error) {
     loadError.value = error instanceof Error ? error.message : '资源目录暂时无法读取。'
   } finally {
@@ -103,7 +117,7 @@ watch(
 async function loadContent(item: MarketResource) {
   const key = `${props.kind}:${item.id}`
   if (contentCache.has(key)) return contentCache.get(key)!
-  const url = resourceWrap(`/dicts/${item.language}/${props.kind}/${encodeURIComponent(item.url)}`)
+  const url = resourceWrap(`/dicts/${item.language}/${props.kind}/${item.url.split('/').map(encodeURIComponent).join('/')}`)
   const response = await fetch(url, { signal: AbortSignal.timeout(20000) })
   if (!response.ok) throw new Error(`资源读取失败（${response.status}），请重试。`)
   const data = readMarketContent(item, props.kind, await response.json())

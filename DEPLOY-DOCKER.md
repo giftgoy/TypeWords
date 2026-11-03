@@ -38,9 +38,25 @@ docker run -d --name typewords --restart unless-stopped -p 5567:80 typewords:loc
 
 ## 2. 这套部署做了什么
 
+### 每日自动拉取文章（可选，默认开启）
+
+`typewords-articles` 容器每天自动抓取英文文章并机翻成中文，写进 `typewords-feed` 卷，nginx 以静态文件形式提供，文章市场里会多出三本书：
+
+| 书 | 来源 | 许可 |
+| --- | --- | --- |
+| 每日新闻（Wikinews） | en.wikinews.org 最新发布 | CC BY 2.5 |
+| 简单英语百科（Simple Wikipedia） | simple.wikipedia.org | CC BY-SA 4.0 |
+| 公版短篇（Project Gutenberg） | gutenberg.org | Public domain |
+
+- 调度：容器启动先跑一次，之后每天 **UTC 22:00（北京时间 06:00）** 再跑；数量由 `DAILY_COUNT` 控制（每种默认 3 篇），每本最多保留 `MAX_PER_BOOK`（默认 200）篇。
+- 翻译：默认用 **MyMemory 免费接口**（无需 key，单条约 500 字符，免费额度约 5000 字符/天）；额度用尽或网络失败时，文章仍会入库，只是中文对照为空。可在 `deploy/.env` 里填 `MYMEMORY_EMAIL` 提高额度，或设 `TRANSLATE_ENABLED=0` 关闭翻译。
+- LibreTranslate 可选后端：设 `TRANSLATE_PROVIDER=libretranslate` 并起一个 `libretranslate/libretranslate` 容器（需能访问模型源，本机实测被墙，故默认不用）。
+- 产物位置（卷 `typewords_typewords-feed`）：`index.json` + `wikinews.json` / `simplewiki.json` / `gutenberg.json`，对应 URL `/dicts/en/article/feed/...`。
+- 关闭：`docker compose stop articles`；清空重来：`docker compose rm -f articles && docker volume rm typewords_typewords-feed`。
+
 ### 共享学习数据（同一套部署、多个浏览器/设备共用一份进度）
 
-`docker compose up -d --build` 会起三个容器：`typewords`（nginx 静态站）、`typewords-tts`（自然人声）、`typewords-data`（学习数据服务）。
+`docker compose up -d --build` 会起四个容器：`typewords`（nginx 静态站）、`typewords-tts`（自然人声）、`typewords-data`（学习数据服务）、`typewords-articles`（每日文章）。
 
 - 浏览器打开站点后，客户端会把 IndexedDB 里的学习数据同步到服务端；换浏览器/换电脑打开同一个地址，会自动载入同一份进度。
 - 数据存在 **Docker 命名卷 `typewords_typewords-data`** 里的 `learning.sqlite3`，重建容器、`docker compose down` 都不会丢（只有 `docker compose down -v` 会删卷）。

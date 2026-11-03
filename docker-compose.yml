@@ -12,6 +12,9 @@ services:
     depends_on:
       - tts
       - data
+    volumes:
+      # 每日自动拉取的文章（articles 容器写入），nginx 直接静态托管
+      - typewords-feed:/usr/share/nginx/html/dicts/en/article/feed:ro
 
   tts:
     build: ./deploy/tts
@@ -33,5 +36,23 @@ services:
     volumes:
       - typewords-data:/data
 
+  # 每日文章拉取：Wikinews / Simple Wikipedia / Project Gutenberg，写入 feed 卷
+  articles:
+    build: ./deploy/articles
+    image: typewords-articles:local
+    container_name: typewords-articles
+    restart: unless-stopped
+    environment:
+      FEED_DIR: /feed
+      TRANSLATE_PROVIDER: ${TRANSLATE_PROVIDER:-mymemory}
+      TRANSLATE_ENABLED: ${TRANSLATE_ENABLED:-1}
+      DAILY_COUNT: ${DAILY_COUNT:-3}
+      MAX_PER_BOOK: ${MAX_PER_BOOK:-200}
+      SCHEDULE_HOUR: ${SCHEDULE_HOUR:-22} # UTC 22 = 北京时间次日 06:00
+      RUN_ON_START: ${RUN_ON_START:-1}
+    volumes:
+      - typewords-feed:/feed
+
 volumes:
   typewords-data:
+  typewords-feed:

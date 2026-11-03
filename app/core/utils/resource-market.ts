@@ -56,7 +56,7 @@ export function readMarketCatalog(value: unknown): MarketResource[] {
         !identities(item).length ||
         typeof item.name !== 'string' ||
         typeof item.url !== 'string' ||
-        !/^[\w.-]+\.json$/.test(item.url) ||
+        !/^[\w./-]+\.json$/.test(item.url) ||
         item.url.includes('..') ||
         !Number.isInteger(item.length) ||
         item.length < 1 ||
