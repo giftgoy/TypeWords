@@ -462,7 +462,7 @@ export function createPracticeWordNavigator(deps: NavigatorDeps) {
       const temp = word.word
       const preTimes = data.wrongTimesMap[temp] ?? 0
       const phase = currentPhase.value
-      data.wrongTimesMap[temp] = preTimes + data.wrongTimes
+      if (countAsTyping || data.wrongTimes > 0) data.wrongTimesMap[temp] = preTimes + data.wrongTimes
       data.wrongTimes = 0
       if (countAsTyping) statStore.inputWordNumber++
 
@@ -478,10 +478,12 @@ export function createPracticeWordNavigator(deps: NavigatorDeps) {
 
   function prev() {
     const data = deps.getPracticeData()
-    if (data.index === 0) {
+    let previousIndex = data.index - 1
+    while (previousIndex >= 0 && deps.checkWordIsNeedNext(data.words[previousIndex])) previousIndex--
+    if (previousIndex < 0) {
       deps.notify?.('warning', '已经是第一个了~')
     } else {
-      data.index--
+      data.index = previousIndex
     }
   }
 

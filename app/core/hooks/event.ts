@@ -3,6 +3,7 @@ import {emitter, EventKey} from '../utils/eventBus'
 import {useSettingStore} from '../stores'
 import {isMobile} from '../utils'
 import {Toast} from '@/base'
+import { modalStack } from '@/base/dialog/stack'
 
 const CODE_TO_CHAR: Record<string, string> = {
   ...Object.fromEntries('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(c => [`Key${c}`, c.toLowerCase()])),
@@ -222,9 +223,11 @@ export function useEventListener(type: string, listener: EventListenerOrEventLis
         if (!window.location.pathname.includes('/practice')) return
         const typingWord = target.closest('#PracticeArea')
         if (!typingWord) return
-        if (target.closest('input, textarea, select, [contenteditable="true"]')) return false
+        if (modalStack.length || target.closest('input, textarea, select, button, [role="switch"], [contenteditable="true"]')) return false
         if (!getSelectedText()) {
-          window.setTimeout(() => hiddenInput.focus(), 160)
+          window.setTimeout(() => {
+            if (!modalStack.length && !window.disableEventListener) hiddenInput.focus()
+          }, 160)
         }
       }
 
@@ -316,8 +319,14 @@ export function getShortcutKey(e: KeyboardEvent) {
 
 export function useStartKeyboardEventListener() {
   const settingStore = useSettingStore()
+  const isEditingControl = (e: KeyboardEvent) =>
+    e.target instanceof Element && (
+      !!e.target.closest('input:not(#typing-listener), textarea, select, [contenteditable="true"]') ||
+      (['Space', 'Enter'].includes(e.code) && !!e.target.closest('button, [role="switch"]'))
+    )
 
   useEventListener('keydown', (e: KeyboardEvent) => {
+    if (modalStack.length || isEditingControl(e)) return
     // console.log('keydown', e)
     // debugger
     //解决无法复制、全选的问题
@@ -378,6 +387,7 @@ export function useStartKeyboardEventListener() {
     }
   })
   useEventListener('keyup', (e: KeyboardEvent) => {
+    if (modalStack.length || isEditingControl(e)) return
     if (!window?.disableEventListener) {
       emitter.emit(EventKey.keyup, e)
     }

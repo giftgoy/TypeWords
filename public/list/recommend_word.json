@@ -3,12 +3,12 @@
     "id": 1,
     "enName": "cet4",
     "name": "CET-4",
-    "description": "大学英语四级词库",
+    "description": "大学英语四级词库，附音标、释义、例句与词源，适合系统巩固。",
     "categoryId": 1,
     "url": "CET4_T.json",
     "length": 2607,
     "language": "en",
-    "translateLanguage": "zh_CN",
+    "translateLanguage": "zh-CN",
     "version": 1,
     "type": "word",
     "isDefault": false,
@@ -18,7 +18,84 @@
     "updatedAt": "2026-06-03 15:27:15.113708",
     "cover": null,
     "hidden": false,
-    "category": "中国考试",
-    "tags": ["大学英语"]
+    "category": "国内考试",
+    "tags": [
+      "四级",
+      "大学英语"
+    ],
+    "source": "TypeWords 随附词库",
+    "sourceUrl": "https://github.com/giftgoy/TypeWords",
+    "icon": "C4",
+    "accent": "indigo",
+    "featured": true
+  },
+  {
+    "id": "market-nce1-words",
+    "enName": "market-nce1-words",
+    "name": "新概念英语 1 · 词汇",
+    "description": "从日常问候、家庭和生活场景开始，建立基础词汇。",
+    "category": "基础入门",
+    "icon": "N1",
+    "accent": "mint",
+    "tags": [
+      "入门",
+      "日常交流"
+    ],
+    "url": "market-nce1-words.json",
+    "length": 861,
+    "type": "word",
+    "language": "en",
+    "translateLanguage": "zh-CN",
+    "version": 1,
+    "source": "Qwerty Learner",
+    "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/NCE_1.json",
+    "license": "GPL-3.0",
+    "featured": true
+  },
+  {
+    "id": "market-cet6",
+    "enName": "market-cet6",
+    "name": "CET-6 大学英语六级",
+    "description": "在四级基础上拓展阅读、写作与学术表达词汇。",
+    "category": "国内考试",
+    "icon": "C6",
+    "accent": "indigo",
+    "tags": [
+      "六级",
+      "大学英语"
+    ],
+    "url": "market-cet6.json",
+    "length": 2345,
+    "type": "word",
+    "language": "en",
+    "translateLanguage": "zh-CN",
+    "version": 1,
+    "source": "Qwerty Learner",
+    "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/CET6_T.json",
+    "license": "GPL-3.0",
+    "featured": true
+  },
+  {
+    "id": "market-ielts",
+    "enName": "market-ielts",
+    "name": "IELTS 雅思",
+    "description": "围绕教育、环境、社会等主题积累雅思备考词汇。",
+    "category": "留学考试",
+    "icon": "IE",
+    "accent": "indigo",
+    "tags": [
+      "雅思",
+      "学术英语"
+    ],
+    "url": "market-ielts.json",
+    "length": 3575,
+    "type": "word",
+    "language": "en",
+    "translateLanguage": "zh-CN",
+    "version": 1,
+    "source": "Qwerty Learner",
+    "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/IELTS_3_T.json",
+    "license": "GPL-3.0",
+    "featured": true
   }
 ]

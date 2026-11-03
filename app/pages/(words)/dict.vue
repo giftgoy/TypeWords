@@ -25,13 +25,14 @@ import { useRuntimeStore } from '@/core/stores/runtime.ts'
 import { useSettingStore } from '@/core/stores/setting.ts'
 import { Sort, WordPracticeMode } from '@/core/types/enum.ts'
 import { getDefaultDict, getDefaultWord } from '@/core/types/func.ts'
-import type { Dict, Word } from '@/core/types/types.ts'
+import type { Dict, DictResource, Word } from '@/core/types/types.ts'
 import {
   _getDictDataByUrl,
   _nextTick,
   convertToWord,
   ensureCustomDictCopy,
   isMobile,
+  isDictIdMatch,
   loadJsLib,
   resourceWrap,
   reverse,
@@ -53,6 +54,7 @@ const isMob = isMobile()
 const { t: $t } = useI18n()
 let loading = $ref(false)
 let allList = $ref([])
+let detailReady = $ref(false)
 
 const getDefaultFormWord = () => {
   return {
@@ -293,39 +295,56 @@ function createCopy() {
 }
 
 onMounted(async () => {
-  if (route.query?.isAdd) {
-    isAdd = true
-    runtimeStore.editDict = getDefaultDict()
-  } else {
-    if (!runtimeStore.editDict.id) {
-      return router.push('/words')
+  loading = true
+  try {
+    if (route.query?.isAdd) {
+      isAdd = true
+      runtimeStore.editDict = getDefaultDict()
     } else {
-      if (!runtimeStore.editDict.words.length && !runtimeStore.editDict.custom && !runtimeStore.editDict.system) {
-        loading = true
-        let dictList = await fetch(resourceWrap(DICT_LIST.WORD.ALL)).then(r => r.json())
-        let dict = await _getDictDataByUrl(runtimeStore.editDict)
-        let r = dictList.find(v => [v.enName, v.id].includes(runtimeStore.editDict.id))
-        if (r) {
-          runtimeStore.editDict.words = dict.words
-          runtimeStore.editDict.id = r.id
-          runtimeStore.editDict.enName = r.enName
-          runtimeStore.editDict.cover = r.cover
-          runtimeStore.editDict.category = r.category
-          runtimeStore.editDict.tags = r.tags
-          runtimeStore.editDict.url = r.url
-          runtimeStore.editDict.description = r.description
-          runtimeStore.editDict.name = r.name
-        } else {
-          runtimeStore.editDict = dict
+      const resourceId = String(route.query.id || '')
+      if (resourceId && !isDictIdMatch(runtimeStore.editDict, resourceId)) {
+        // Restore a market link after refresh, preserving saved progress when available.
+        if (!base.load) {
+          await new Promise<void>(resolve => {
+            const stop = watch(
+              () => base.load,
+              ready => {
+                if (ready) {
+                  stop()
+                  resolve()
+                }
+              }
+            )
+          })
         }
-        runtimeStore.editDict.length = dict.words.length
+        let saved = base.word.bookList.find(item => isDictIdMatch(item, resourceId))
+        if (!saved) {
+          const response = await fetch(resourceWrap(DICT_LIST.WORD.ALL))
+          if (!response.ok) throw new Error('词典目录读取失败')
+          const catalog: DictResource[] = await response.json()
+          saved = catalog.find(item => isDictIdMatch(item, resourceId)) as Dict
+        }
+        runtimeStore.editDict = getDefaultDict(saved)
       }
-      loading = false
+      if (!runtimeStore.editDict.id) return router.replace('/words')
+      if (
+        (!Array.isArray(runtimeStore.editDict.words) || !runtimeStore.editDict.words.length) &&
+        !runtimeStore.editDict.custom &&
+        !runtimeStore.editDict.system
+      ) {
+        runtimeStore.editDict = await _getDictDataByUrl(runtimeStore.editDict)
+      }
+      if (!Array.isArray(runtimeStore.editDict.words)) throw new Error('词典内容格式不正确')
+      runtimeStore.editDict.length = runtimeStore.editDict.words.length
     }
+    allList = runtimeStore.editDict.words
+    detailReady = true
+    tableRef.value?.getData()
+  } catch (error) {
+    Toast.error(error instanceof Error ? error.message : '词典读取失败，请重试')
+  } finally {
+    loading = false
   }
-
-  allList = runtimeStore.editDict.words
-  tableRef.value.getData()
 })
 
 function formClose() {
@@ -523,6 +542,8 @@ function getLocalList({ pageNo, pageSize, searchKey }) {
 }
 
 async function requestList({ pageNo, pageSize, searchKey }) {
+  // The child table mounts before this page has restored its selected dictionary.
+  if (!detailReady) return { list: [], total: 0 }
   if (!dict.custom && !dict.system) {
     // 非自定义词典，直接请求json
 

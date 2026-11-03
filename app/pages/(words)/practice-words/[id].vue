@@ -37,6 +37,7 @@ import {
 } from '@/core/composables/practice-words/usePracticeIdleTimer.ts'
 import { createStudyTask } from '@/core/composables/practice-words/study-task.ts'
 import PrevAndNextWord from '@/components/word/PrevAndNextWord.vue'
+import SimpleWordFilterControl from '@/components/word/SimpleWordFilterControl.vue'
 import type { PracticeNotifier } from '@/core/composables/practice-words/practice-flow-types.ts'
 import { usePracticeWordSession } from '@/core/composables/practice-words/usePracticeWordSession.ts'
 
@@ -554,12 +555,13 @@ useEvents([
 
         <WordMarkPickList
           v-if="isQuickMarkWordList"
-          :words="data.words"
+          :words="data.words.filter(item => !store.getIgnoreWordsSet().has(item.word.trim().toLowerCase()))"
           @complete="onWordMarkPickComplete"
           @back="isQuickMarkWordList = false"
         />
 
         <div class="mb-50 w-full" v-else>
+          <SimpleWordFilterControl compact :words="store.sdict.words" :current-word="word.word" />
           <PrevAndNextWord
             :data="data"
             :isWordMasked="effective.isWordMasked"

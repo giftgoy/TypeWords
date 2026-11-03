@@ -6,6 +6,7 @@ import { useSettingStore } from '@/core/stores/setting'
 import ChangeLastPracticeIndexDialog from './ChangeLastPracticeIndexDialog.vue'
 import { useRuntimeStore } from '@/core/stores/runtime'
 import { BaseInput } from '@/base'
+import SimpleWordFilterControl from './SimpleWordFilterControl.vue'
 
 const Dialog = defineAsyncComponent(() => import('@/base/dialog/Dialog.vue'))
 
@@ -129,6 +130,7 @@ watch(
           <BaseButton @click="show = true">{{ $t('select_from_dict') }}</BaseButton>
         </div>
       </div>
+      <SimpleWordFilterControl :words="runtimeStore.editDict.words" />
     </div>
   </Dialog>
   <ChangeLastPracticeIndexDialog

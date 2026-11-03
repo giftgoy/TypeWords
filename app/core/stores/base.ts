@@ -6,6 +6,7 @@ import { get } from 'idb-keyval'
 import { DictId, IS_DEV, SAVE_DICT_KEY } from '../config/env'
 import type { Card } from 'ts-fsrs'
 import { useSettingStore } from './setting.ts'
+import { DEFAULT_SIMPLE_WORDS, buildIgnoreWordsSet, parseSimpleWords } from '../utils/simple-word-filter'
 
 export interface BaseState {
   simpleWords: string[]
@@ -25,50 +26,7 @@ export interface BaseState {
 }
 
 export const getDefaultBaseState = (): BaseState => ({
-  simpleWords: [
-    'a',
-    'an',
-    'i',
-    'my',
-    'me',
-    'you',
-    'your',
-    'he',
-    'his',
-    'she',
-    'her',
-    'it',
-    'what',
-    'who',
-    'where',
-    'how',
-    'when',
-    'which',
-    'be',
-    'am',
-    'is',
-    'was',
-    'are',
-    'were',
-    'do',
-    'did',
-    'can',
-    'could',
-    'will',
-    'would',
-    'the',
-    'that',
-    'this',
-    'and',
-    'not',
-    'no',
-    'yes',
-    'to',
-    'of',
-    'for',
-    'at',
-    'in',
-  ],
+  simpleWords: [...DEFAULT_SIMPLE_WORDS],
   load: false,
   word: {
     bookList: [
@@ -118,18 +76,16 @@ export const useBaseStore = defineStore('base', {
       return res ?? getDefaultDict()
     },
     knownWords(): string[] {
-      return this.known.words.map((v: Word) => v.word.toLowerCase())
+      return parseSimpleWords(this.known.words.map((v: Word) => v.word))
     },
     allIgnoreWords(): string[] {
-      return this.known.words
-        .map((v: Word) => v.word.toLowerCase())
-        .concat(this.simpleWords.map((v: string) => v.toLowerCase()))
+      return parseSimpleWords([...this.knownWords, ...this.simpleWords])
     },
     knownWordsSet(): Set<string> {
-      return new Set<string>(this.known.words.map((v: Word) => v.word))
+      return buildIgnoreWordsSet([], this.knownWords, false)
     },
     allIgnoreWordsSet(): Set<string> {
-      return new Set<string>(this.known.words.map((v: Word) => v.word).concat(this.simpleWords.map((v: string) => v)))
+      return buildIgnoreWordsSet(this.simpleWords, this.knownWords, true)
     },
     sdict(): Dict {
       if (this.word.studyIndex >= 0) {

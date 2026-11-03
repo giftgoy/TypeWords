@@ -1,24 +1,92 @@
 [
   {
-    "id": 246,
-    "enName": "nce1",
-    "name": "新概念英语1",
-    "description": "第一册《英语初阶》讲练基本语音、语调、语法、词法、句法及句型结构，是练好英语基本功的关键。",
-    "categoryId": 4,
-    "url": "NCE_1.json",
-    "length": 72,
-    "language": "en",
-    "translateLanguage": "zh_CN",
-    "version": 1,
+    "id": "graded-a1",
+    "enName": "graded-a1",
+    "name": "A1 · 生活中的第一句话",
+    "description": "从清晨、购物和公园开始，用短句读懂身边的小事。",
+    "category": "生活与成长",
+    "tags": [
+      "入门",
+      "日常生活",
+      "双语对照"
+    ],
+    "level": "A1",
+    "levelNote": "参考难度，非官方 CEFR 评级",
+    "learningFocus": "一般现在时、基础问答、常见生活词汇",
+    "icon": "A1",
+    "accent": "mint",
+    "url": "graded-a1.json",
+    "length": 4,
     "type": "article",
-    "isDefault": false,
-    "recommended": true,
-    "userId": "00000000-0000-0000-0000-000000000001",
-    "createdAt": "2026-05-12 02:04:50.831091",
-    "updatedAt": "2026-06-03 15:27:15.113708",
-    "cover": "\/imgs\/covers\/nce-1.png",
-    "hidden": false,
-    "category": "文章学习",
-    "tags": ["新概念英语"]
+    "language": "en",
+    "translateLanguage": "zh-CN",
+    "version": 1,
+    "source": "原创双语读物",
+    "license": "CC0-1.0",
+    "wordRange": [
+      74,
+      80
+    ],
+    "featured": true
+  },
+  {
+    "id": "graded-a2",
+    "enName": "graded-a2",
+    "name": "A2 · 把日子过成小故事",
+    "description": "一次短途旅行、一张借书卡，在熟悉的场景里练习讲故事。",
+    "category": "生活与成长",
+    "tags": [
+      "基础",
+      "旅行",
+      "双语对照"
+    ],
+    "level": "A2",
+    "levelNote": "参考难度，非官方 CEFR 评级",
+    "learningFocus": "一般过去时、比较、计划和日常叙述",
+    "icon": "A2",
+    "accent": "sky",
+    "url": "graded-a2.json",
+    "length": 4,
+    "type": "article",
+    "language": "en",
+    "translateLanguage": "zh-CN",
+    "version": 1,
+    "source": "原创双语读物",
+    "license": "CC0-1.0",
+    "wordRange": [
+      93,
+      104
+    ],
+    "featured": true
+  },
+  {
+    "id": "graded-b1",
+    "enName": "graded-b1",
+    "name": "B1 · 成长与小小改变",
+    "description": "讲述一次尝试、解释一个选择，在完整语境中拓展表达。",
+    "category": "生活与成长",
+    "tags": [
+      "中级",
+      "个人成长",
+      "双语对照"
+    ],
+    "level": "B1",
+    "levelNote": "参考难度，非官方 CEFR 评级",
+    "learningFocus": "经历叙述、原因与结果、观点和感受",
+    "icon": "B1",
+    "accent": "indigo",
+    "url": "graded-b1.json",
+    "length": 4,
+    "type": "article",
+    "language": "en",
+    "translateLanguage": "zh-CN",
+    "version": 1,
+    "source": "原创双语读物",
+    "license": "CC0-1.0",
+    "wordRange": [
+      109,
+      120
+    ],
+    "featured": true
   }
 ]

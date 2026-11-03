@@ -91,6 +91,28 @@ function onMouseLeave() {
           <IconFluentBookLetter20Regular />
           <span>{{ $t('articles') }}</span>
         </NuxtLink>
+        <NuxtLink
+          to="/dict-list"
+          class="row"
+          :class="{ 'router-link-active': route.path === '/book-list' }"
+          aria-label="资源市场"
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+          <span>资源市场</span>
+        </NuxtLink>
         <NuxtLink to="/feedback" class="row">
           <IconFluentCommentEdit20Regular />
           <span>{{ $t('feedback') }}</span>

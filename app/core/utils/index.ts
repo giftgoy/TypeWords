@@ -545,7 +545,7 @@ export function getShufflePracticeWords<T extends { word: string }>(
 ) {
   const range = normalizeShufflePracticeRange(setting.range, words.length)
   const total = Math.max(0, Math.floor(Number(setting.total) || 0))
-  const candidates = words.slice(range.start, range.end).filter(v => !ignoreSet?.has(v.word))
+  const candidates = words.slice(range.start, range.end).filter(v => !ignoreSet?.has(v.word.trim().toLowerCase()))
 
   return {
     range,

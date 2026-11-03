@@ -4,6 +4,8 @@ import type { PracticeData } from '@/core/composables/practice-words/practice-wo
 import { ShortcutKey } from '@/core'
 import { Tooltip } from '@/base'
 import { useSettingStore } from '@/core/stores/setting.ts'
+import { useBaseStore } from '@/core/stores/base.ts'
+import { normalizeWordKey } from '@/core/utils/simple-word-filter'
 
 const props = defineProps<{
   data: PracticeData
@@ -16,12 +18,15 @@ const emit = defineEmits<{
   openNotice: []
 }>()
 
-const prevWord: Word | null = $computed(() => {
-  return props.data.words?.[props.data.index - 1] ?? null
-})
-const nextWord: Word | null = $computed(() => {
-  return props.data.words?.[props.data.index + 1] ?? null
-})
+const store = useBaseStore()
+const isEligible = (word: Word) =>
+  !store.getIgnoreWordsSet().has(normalizeWordKey(word.word)) && !props.data.excludeWords.includes(word.word)
+const prevWord: Word | null = $computed(() =>
+  props.data.words.slice(0, props.data.index).reverse().find(isEligible) ?? null
+)
+const nextWord: Word | null = $computed(() =>
+  props.data.words.slice(props.data.index + 1).find(isEligible) ?? null
+)
 
 const settingStore = useSettingStore()
 </script>

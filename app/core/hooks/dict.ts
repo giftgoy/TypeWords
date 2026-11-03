@@ -154,7 +154,7 @@ export function getCurrentStudyWord(): TaskWords {
     const perDay = dict.perDayStudyNumber
     const start = isTest ? 1 : dict.lastLearnIndex
     const complete = isTest ? true : dict.complete
-    const isEnd = start >= dict.length - 1 && dict.length !== 1
+    const isEnd = start >= words.length
     const reviewRatio = settingStore.wordReviewRatio
 
     let end = start
@@ -163,7 +163,7 @@ export function getCurrentStudyWord(): TaskWords {
       for (let i = start; i < words.length; i++) {
         let item = words[i]
         if (data.new.length >= perDay) break
-        if (!ignoreSet.has(item.word)) {
+        if (!ignoreSet.has(item.word.trim().toLowerCase())) {
           data.new.push(item)
         }
         end++
@@ -186,12 +186,14 @@ export function getCurrentStudyWord(): TaskWords {
           //3、不在新词里面
           //4、到自然日就算到期
           // console.log(`单词：${word},到期时间：${dayjs(card.due).format('YYYY-MM-DD HH:mm:ss')}`)
-          let isMastered = ignoreSet.has(word)
+          const key = word.trim().toLowerCase()
+          const isMastered = store.knownWordsSet.has(key)
+          const isIgnored = ignoreSet.has(key)
           if (isMastered) {
             waitRemoveFromFsrsData.push(word)
           }
           return (
-            !isMastered &&
+            !isIgnored &&
             dayjs(card.due).isSameOrBefore(now, 'day') &&
             wordMap.has(word) &&
             !data.new.find(v => v.word === word)
