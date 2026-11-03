@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { BaseButton, Close } from '@/base'
-import { watch } from 'vue'
-import { APP_NAME, Host } from '@/core/config/env.ts'
+import { watch, onMounted } from 'vue'
+import { APP_NAME } from '@/core/config/env.ts'
 import { isMobile } from '@/core/utils'
 
+let currentHost = $ref('')
+onMounted(() => { currentHost = window.location.host })
 let showNotice = $ref(false)
 let show = $ref(false)
 let num = $ref(3)
@@ -51,7 +53,7 @@ watch(
       <div class="collect">
         <div class="href-wrapper">
           <div class="round">
-            <div class="text-base">{{ Host }}</div>
+            <div class="text-base">{{ currentHost }}</div>
             <IconMdiStarOutline />
           </div>
           <div class="right">

@@ -14,12 +14,15 @@ import { useI18n } from 'vue-i18n'
 import { Supabase } from '@/core/utils/supabase.ts'
 import MiniProgram from '@/components/MiniProgram.vue'
 import WordCollectPopover from '@/components/word/WordCollectPopover.vue'
+import LearningGuide from '@/components/LearningGuide.vue'
+import { isOfficialDeployment } from '@/core/utils/learning-guide'
 
 const router = useRouter()
 const { toggleTheme, getTheme, setTheme } = useTheme()
 const runtimeStore = useRuntimeStore()
 const settingStore = useSettingStore()
 let expand = $ref(false)
+let officialDeployment = $ref(false)
 const init = useInit()
 
 function toggleExpand(n: boolean) {
@@ -51,6 +54,7 @@ const showIcon = $computed(() => {
 })
 
 onMounted(() => {
+  officialDeployment = isOfficialDeployment(window.location.hostname)
   init()
   window.umami?.track('sync', { check: Supabase.check() })
 })
@@ -186,7 +190,7 @@ function onMouseLeave() {
       <router-view></router-view>
 
       <div class="absolute right-4 top-4 flex z-1 gap-2" v-if="showIcon">
-        <MiniProgram v-if="settingStore.load && !settingStore.first" />
+        <MiniProgram v-if="officialDeployment && settingStore.load && !settingStore.first" />
 
         <div class="relative group">
           <BaseIcon>
@@ -213,6 +217,7 @@ function onMouseLeave() {
       </div>
     </div>
     <WordCollectPopover />
+    <LearningGuide />
   </div>
 </template>
 

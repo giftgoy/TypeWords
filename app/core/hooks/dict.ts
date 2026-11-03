@@ -9,6 +9,7 @@ import { useRuntimeStore } from '../stores/runtime.ts'
 import { useRoute, useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
+import { getReviewWordLimit } from '../utils/learning-guide'
 
 dayjs.extend(isSameOrBefore)
 
@@ -153,7 +154,6 @@ export function getCurrentStudyWord(): TaskWords {
     const ignoreSet = [store.allIgnoreWordsSet, store.knownWordsSet][settingStore.ignoreSimpleWord ? 0 : 1]
     const perDay = dict.perDayStudyNumber
     const start = isTest ? 1 : dict.lastLearnIndex
-    const complete = isTest ? true : dict.complete
     const isEnd = start >= words.length
     const reviewRatio = settingStore.wordReviewRatio
 
@@ -170,12 +170,11 @@ export function getCurrentStudyWord(): TaskWords {
       }
     }
 
-    //如果复习比大于等于1，或者已完成，才生成复习词
-    if (reviewRatio >= 1 || complete || isEnd) {
+    // 复习上限为 0 时暂停复习，支持少于每日新词数的复习目标。
+    if (reviewRatio > 0) {
       //Map建立索引，用于查找、包含
       const wordMap = new Map(words.map(s => [s.word, s]))
-      //复习总数量;如果已结束那么复习比最小是1
-      const totalNeed = perDay * (isEnd ? reviewRatio || 1 : reviewRatio)
+      const totalNeed = getReviewWordLimit(perDay, reviewRatio)
       const now = dayjs()
       let waitRemoveFromFsrsData = []
       //取 due 到期的单词

@@ -235,7 +235,7 @@ function openResource(item: MarketResource) {
           </p>
         </div>
       </aside>
-      <section class="market-content" aria-label="资源列表">
+      <section :id="words ? 'word-market-list' : undefined" class="market-content" aria-label="资源列表">
         <div class="market-toolbar">
           <label class="market-search"
             ><svg aria-hidden="true" viewBox="0 0 24 24">

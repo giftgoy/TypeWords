@@ -4,6 +4,11 @@ import WeChat from '@/components/channel-icons/WeChat.vue'
 import { APP_NAME, GITHUB, Origin } from '@/core/config/env.ts'
 import ConflictNoticeText from '@/components/dialog/ConflictNoticeText.vue'
 
+const guide = useLearningGuide()
+const currentAddress = ref('')
+onMounted(() => {
+  currentAddress.value = window.location.origin + useRuntimeConfig().app.baseURL
+})
 let title = APP_NAME + ' 常见问题解答'
 let route = useRoute()
 useSeoMeta({
@@ -21,6 +26,14 @@ useSeoMeta({
   <BasePage>
     <div class="center">
       <div class="card-white qa w-2/3">
+        <div class="mb-6">
+          <button type="button" class="guide-entry-button" @click="guide.start">重看入门引导</button>
+          <p class="mt-3 text-sm">选择词典 → 设置每日新词与复习上限 → 键盘练习。引导可随时跳过。</p>
+          <p class="mt-3 text-sm">
+            收藏当前本地地址：<code>{{ currentAddress }}</code
+            >。电脑上按 Ctrl+D（Mac 为 Command+D）。
+          </p>
+        </div>
         <div class="font-bold text-2xl mb-6">{{ $t('faq') }}</div>
         <div class="list">
           <Collapse

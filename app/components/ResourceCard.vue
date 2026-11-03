@@ -6,7 +6,7 @@ defineProps<{
   resource: Resource
 }>()
 
-const emit = defineEmits(['openLink'])
+const emit = defineEmits(['showQr'])
 
 // 根据难度获取对应的样式类
 const getDifficultyClass = (difficulty: string) => {
@@ -61,7 +61,7 @@ const getDifficultyClass = (difficulty: string) => {
       </div>
     </div>
     <div class="space-y-2" v-else>
-      <div class=" flex items-start justify-between" v-for="item in resource.children">
+      <div class="flex items-start justify-between" v-for="item in resource.children">
         <div>
           <div class="text-base font-semibold text-gray-800 dark:text-gray-100">
             {{ item.name }}
@@ -93,9 +93,33 @@ const getDifficultyClass = (difficulty: string) => {
     </div>
 
     <div class="flex flex-col gap-3" v-if="resource.link">
-      <BaseButton type="primary" @click="emit('openLink', resource.link)">
-        {{ $t('open_link') }}
-      </BaseButton>
+      <a :href="resource.link" target="_blank" rel="noopener noreferrer" class="external-resource-link"
+        >打开外部资料 ↗</a
+      >
+      <p class="text-xs color-sub-text">外部网站或网盘，可能需要登录；不是本机直接下载。</p>
+      <button type="button" class="resource-qr-button" @click="emit('showQr', resource.link)">手机扫码（可选）</button>
     </div>
   </div>
 </template>
+
+<style scoped>
+.external-resource-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
+  background: var(--btn-primary);
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  text-decoration: none;
+}
+.resource-qr-button {
+  border: 0;
+  color: var(--color-link);
+  font: inherit;
+  font-size: 12px;
+  background: transparent;
+  cursor: pointer;
+}
+</style>

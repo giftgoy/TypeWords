@@ -4,6 +4,7 @@ import { ref } from 'vue'
 
 import { ENV, PronunciationApi, SoundFileOptions } from '../config/env'
 import { Toast } from '@/base'
+import { startPronunciation } from '@/core/utils/pronunciation'
 
 /**
  * 获取当前浏览器的 OS+浏览器 组合 key，用于 ttsVoiceMap 的索引
@@ -169,6 +170,7 @@ export function cancelWordPracticeAudio() {
   }
   const wordAudio = getCachedWordAudio()
   if (wordAudio) {
+    wordAudio.onplay = null
     wordAudio.onended = null
     wordAudio.onerror = null
     wordAudio.pause()
@@ -185,7 +187,13 @@ export function usePlayWordAudio() {
     getCachedWordAudio()
   })
 
-  function playAudio(word: string, handle: boolean = true, onEnd?: () => void, onPlay?: () => void) {
+  function playAudio(
+    word: string,
+    handle: boolean = true,
+    onEnd?: () => void,
+    onPlay?: () => void,
+    onError?: (message: string) => void
+  ) {
     const wordAudio = getCachedWordAudio()
     if (!word || !wordAudio) return
     cancelWordPracticeAudio()
@@ -209,38 +217,44 @@ export function usePlayWordAudio() {
       }, 5000)
     }
     // console.log('playAudio-handle', handle, playbackRate)
-    let url = `${PronunciationApi}${word}&type=2`
+    let url = `${PronunciationApi}${encodeURIComponent(word)}&type=2`
     if (settingStore.soundType === 'uk') {
-      url = `${PronunciationApi}${word}&type=1`
+      url = `${PronunciationApi}${encodeURIComponent(word)}&type=1`
     }
-    let onended = () => {
-      if (generation !== wordPlaybackGeneration) return
-      onEnd?.()
+    if (settingStore.wordSoundVolume <= 0) {
+      onError?.('单词音量为 0，请调整声音设置后重试。')
+      return
     }
-    wordAudio.onended = onended
-    wordAudio.onplay = () => onPlay?.()
-    wordAudio.onerror = () => {
-      if (generation !== wordPlaybackGeneration) return
-      const ttsPlay = useTTsPlayAudio()
-      ttsPlay(word, { rate: playbackRate, onEnd: onended })
-    }
-    wordAudio.src = url
-    wordAudio.volume = settingStore.wordSoundVolume / 100
-    wordAudio.playbackRate = playbackRate
-    void wordAudio.play()
+    startPronunciation({
+      audio: wordAudio,
+      source: url,
+      volume: settingStore.wordSoundVolume / 100,
+      rate: playbackRate,
+      isCurrent: () => generation === wordPlaybackGeneration,
+      onEnd,
+      onPlay,
+      onError: message => {
+        onError?.(message)
+        Toast.warning(message)
+      },
+      fallback: callbacks => useTTsPlayAudio()(word, { rate: playbackRate, ...callbacks }),
+    })
   }
 
   return playAudio
 }
 
-function getVoicesAsync() {
+function getVoicesAsync(): Promise<SpeechSynthesisVoice[]> {
   return new Promise(resolve => {
     const voices = speechSynthesis.getVoices()
     if (voices.length) return resolve(voices)
-
-    speechSynthesis.onvoiceschanged = () => {
+    const finish = () => {
+      clearTimeout(timer)
+      speechSynthesis.removeEventListener('voiceschanged', finish)
       resolve(speechSynthesis.getVoices())
     }
+    const timer = setTimeout(finish, 1200)
+    speechSynthesis.addEventListener('voiceschanged', finish, { once: true })
   })
 }
 
@@ -250,13 +264,18 @@ export interface TTsPlayOptions {
   pitch?: number
   lang?: string
   onEnd?: () => void
+  onPlay?: () => void
+  onError?: (message: string) => void
 }
 
 export function useTTsPlayAudio() {
   const settingStore = useSettingStore()
 
   function play(text: string, options: TTsPlayOptions = {}) {
-    if (!text || typeof speechSynthesis === 'undefined') return
+    if (!text || typeof speechSynthesis === 'undefined') {
+      options.onError?.('当前浏览器没有可用的语音服务。')
+      return
+    }
     const generation = ++ttsPlaybackGeneration
     speechSynthesis.cancel() // 防止 Chrome 队列卡死
     let msg = new SpeechSynthesisUtterance(text)
@@ -264,28 +283,40 @@ export function useTTsPlayAudio() {
     msg.volume = options.volume ?? settingStore.wordSoundVolume / 100
     msg.pitch = options.pitch ?? 1
     msg.lang = options.lang ?? 'en-US'
-    msg.onend = () => options.onEnd?.()
-    msg.onerror = () => options.onEnd?.()
-    getVoicesAsync().then((voices: any[]) => {
-      if (generation !== ttsPlaybackGeneration) return
-      // 优先使用用户在当前浏览器配置的声色
-      const browserKey = getBrowserKey()
-      const savedVoiceName = settingStore?.ttsVoiceMap?.find(v => v.key === browserKey)?.voice
-      if (savedVoiceName) {
-        const savedVoice = voices.find(v => v.name === savedVoiceName)
-        if (savedVoice) {
-          msg.voice = savedVoice
-          speechSynthesis.speak(msg)
-          return
+    msg.onstart = () => {
+      if (generation === ttsPlaybackGeneration) options.onPlay?.()
+    }
+    msg.onend = () => {
+      if (generation === ttsPlaybackGeneration) options.onEnd?.()
+    }
+    msg.onerror = () => {
+      if (generation === ttsPlaybackGeneration)
+        options.onError?.('在线发音和浏览器语音均未能播放。请重试，或查看单词继续练习。')
+    }
+    getVoicesAsync()
+      .then((voices: SpeechSynthesisVoice[]) => {
+        if (generation !== ttsPlaybackGeneration) return
+        // 优先使用用户在当前浏览器配置的声色
+        const browserKey = getBrowserKey()
+        const savedVoiceName = settingStore?.ttsVoiceMap?.find(v => v.key === browserKey)?.voice
+        if (savedVoiceName) {
+          const savedVoice = voices.find(v => v.name === savedVoiceName)
+          if (savedVoice) {
+            msg.voice = savedVoice
+            speechSynthesis.speak(msg)
+            return
+          }
         }
-      }
-      // 回退：优先找 Emma / US，否则取第一个英文声色
-      let voiceList = voices.filter(v => v.lang === 'en-US')
-      if (voiceList && voiceList.length) {
-        msg.voice = voiceList.find(v => v.name.includes('US') || v.name.includes('Emma')) ?? voiceList[0]
-      }
-      speechSynthesis.speak(msg)
-    })
+        // 回退：优先找 Emma / US，否则取第一个英文声色
+        let voiceList = voices.filter(v => v.lang === 'en-US')
+        if (voiceList && voiceList.length) {
+          msg.voice = voiceList.find(v => v.name.includes('US') || v.name.includes('Emma')) ?? voiceList[0]
+        }
+        speechSynthesis.speak(msg)
+      })
+      .catch(() => {
+        if (generation === ttsPlaybackGeneration) options.onError?.('浏览器语音服务暂时不可用。')
+      })
   }
 
   return play

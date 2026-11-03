@@ -18,7 +18,7 @@ import BaseTable from '@/components/BaseTable.vue'
 import PracticeSettingDialog from '@/components/word/PracticeSettingDialog.vue'
 import WordItem from '@/components/word/WordItem.vue'
 import { flushStatToStore, usePracticeWordPersistence } from '@/core/composables/usePracticePersistence'
-import { DICT_LIST, LIB_JS_URL, TourConfig } from '@/core/config/env.ts'
+import { DICT_LIST, LIB_JS_URL } from '@/core/config/env.ts'
 import { getCurrentStudyWord } from '@/core/hooks/dict.ts'
 import { useBaseStore } from '@/core/stores/base.ts'
 import { useRuntimeStore } from '@/core/stores/runtime.ts'
@@ -41,7 +41,7 @@ import {
 } from '@/core/utils'
 import { getPracticeWordCacheLocal } from '@/core/utils/cache.ts'
 import saveAs from 'file-saver'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -370,6 +370,12 @@ const store = useBaseStore()
 const settingStore = useSettingStore()
 const { nav } = useNav()
 
+function openGuideSettings() {
+  if (detailReady) addMyStudyList()
+}
+onMounted(() => window.addEventListener('typewords:guide-open-settings', openGuideSettings))
+onUnmounted(() => window.removeEventListener('typewords:guide-open-settings', openGuideSettings))
+
 //todo 可以和首页合并
 async function startPractice(query = {}) {
   // debugger
@@ -393,6 +399,10 @@ async function startPractice(query = {}) {
     wordPracticeMode: settingStore.wordPracticeMode,
   })
   let currentStudy = getCurrentStudyWord()
+  if (!currentStudy.new.length && !currentStudy.review.length) {
+    Toast.info('当前没有可安排的词汇，请调整学习起点或简单词过滤。')
+    return false
+  }
   nav('practice-words/' + store.sdict.id, query, { taskWords: currentStudy })
 }
 
@@ -468,64 +478,6 @@ async function exportJsonData() {
   saveAs(blob, `${runtimeStore.editDict.name}.json`)
   exportJsonLoading = false
 }
-
-watch(
-  () => loading,
-  val => {
-    if (!val) return
-    _nextTick(async () => {
-      const Shepherd = await loadJsLib('Shepherd', LIB_JS_URL.SHEPHERD)
-      const tour = new Shepherd.Tour(TourConfig)
-      tour.on('cancel', () => {
-        localStorage.setItem('tour-guide', '1')
-      })
-      tour.addStep({
-        id: 'step3',
-        text: '点击这里开始学习',
-        attachTo: { element: '#study', on: 'bottom' },
-        buttons: [
-          {
-            text: `下一步（3/${TourConfig.total}）`,
-            action() {
-              tour.next()
-              addMyStudyList()
-            },
-          },
-        ],
-      })
-
-      tour.addStep({
-        id: 'step4',
-        text: '这里可以选择学习模式、设置学习数量、修改学习进度',
-        attachTo: { element: '#mode', on: 'bottom' },
-        beforeShowPromise() {
-          return new Promise(resolve => {
-            const timer = setInterval(() => {
-              if (document.querySelector('#mode')) {
-                clearInterval(timer)
-                setTimeout(resolve, 500)
-              }
-            }, 100)
-          })
-        },
-        buttons: [
-          {
-            text: `下一步（4/${TourConfig.total}）`,
-            action: async () => {
-              tour.next()
-              await startPractice({ guide: 1 })
-            },
-          },
-        ],
-      })
-
-      const r = localStorage.getItem('tour-guide')
-      if (settingStore.first && !r && !isMobile()) {
-        tour.start()
-      }
-    }, 500)
-  }
-)
 
 const dict = $computed(() => runtimeStore.editDict)
 
@@ -804,6 +756,7 @@ defineRender(() => {
       )}
 
       <PracticeSettingDialog
+        startOnConfirm
         showLeftOption
         modelValue={showPracticeSettingDialog}
         onUpdate:modelValue={val => (showPracticeSettingDialog = val)}

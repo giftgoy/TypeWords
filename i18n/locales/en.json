@@ -508,7 +508,7 @@
 	"random_words_test": "Random Word Test",
 	"practice_sentence": "Practice Example Sentence",
 	"fsrs_desc": "Based on the 'Ebbinghaus forgetting curve' design, the system automatically arranges the most suitable review time according to your memory. \\nNo more mechanical repetition — remember more words in less time. \\nThe better you remember, the longer the review interval; content you easily forget appears more frequently.",
-	"fsrs_settings": "Forgetting Curve Settings",
+	"fsrs_settings": "Smart review (FSRS)",
 	"fsrs_limit_desc": "During learning, each word is rated based on the number of errors. There are four ratings: Again, Hard, Good, Easy. The forgetting curve algorithm uses the rating to calculate when the word needs to be reviewed next.",
 	"fsrs_easy_limit": "Easy Rating Criteria",
 	"fsrs_good_limit": "Good Rating Criteria",

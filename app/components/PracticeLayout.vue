@@ -1,7 +1,24 @@
 <script setup lang="ts">
 import { useSettingStore } from '@/core/stores/setting'
+import { onMounted, onUnmounted, watch } from 'vue'
 
 const settingStore = useSettingStore()
+let narrowScreen: MediaQueryList | undefined
+function collapseOnNarrowScreen() {
+  if (narrowScreen?.matches) settingStore.showPanel = false
+}
+watch(
+  () => settingStore.load,
+  ready => {
+    if (ready) collapseOnNarrowScreen()
+  }
+)
+onMounted(() => {
+  narrowScreen = window.matchMedia('(max-width: 1439px)')
+  collapseOnNarrowScreen()
+  narrowScreen.addEventListener('change', collapseOnNarrowScreen)
+})
+onUnmounted(() => narrowScreen?.removeEventListener('change', collapseOnNarrowScreen))
 defineProps<{
   panelLeft: string
 }>()
@@ -20,6 +37,14 @@ defineProps<{
     >
       <slot name="panel"></slot>
     </div>
+    <button
+      type="button"
+      class="practice-panel-toggle"
+      :aria-expanded="settingStore.showPanel"
+      @click="settingStore.showPanel = !settingStore.showPanel"
+    >
+      {{ settingStore.showPanel ? '收起练习列表' : '展开练习列表' }}
+    </button>
     <div class="footer-wrap">
       <slot name="footer"></slot>
     </div>
@@ -27,6 +52,19 @@ defineProps<{
 </template>
 
 <style scoped lang="scss">
+.practice-panel-toggle {
+  position: fixed;
+  right: 18px;
+  bottom: 90px;
+  z-index: 1002;
+  border: 1px solid var(--color-line);
+  background: var(--color-second);
+  color: var(--color-main-text);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
 .wrap {
   transition: all var(--anim-time);
 }
@@ -76,7 +114,6 @@ defineProps<{
     }
   }
 }
-
 
 @media (max-width: 768px) {
   .wrap {
