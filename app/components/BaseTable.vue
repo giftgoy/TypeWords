@@ -256,7 +256,7 @@ defineRender(() => {
                 <MiniDialog
                   modelValue={showSortDialog}
                   onUpdate:modelValue={e => (showSortDialog = e)}
-                  style="width: 8rem;"
+                  width="10rem"
                 >
                   <div class="mini-row-title">{$t('list_order_setting')}</div>
                   <div class="flex flex-col gap2 btn-no-margin">
