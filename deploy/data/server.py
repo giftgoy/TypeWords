@@ -81,6 +81,12 @@ def create_app(path):
     async def github_status(request):
         return web.json_response(request.app["github"].status())
 
+    async def github_config(request):
+        if request.method == "DELETE":
+            return web.json_response(request.app["github"].clear_config())
+        body = await payload(request)
+        return web.json_response(request.app["github"].save_config(body))
+
     async def github_backup(request):
         try:
             return web.json_response(await asyncio.to_thread(request.app["github"].push))
@@ -97,7 +103,8 @@ def create_app(path):
                     web.get("/archives", archives), web.post("/archives", archives), web.get("/archives/{id:\\d+}", archive),
                     web.post("/restore", restore),
                     web.get("/github/status", github_status), web.post("/github/backup", github_backup),
-                    web.post("/github/restore", github_restore)])
+                    web.post("/github/restore", github_restore),
+                    web.post("/github/config", github_config), web.delete("/github/config", github_config)])
     return app
 
 

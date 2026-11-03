@@ -18,18 +18,25 @@ from datetime import datetime, timezone
 
 SYNC_KEYS = ("typing-word-dict", "typing-word-setting")
 MAX_PAYLOAD_BYTES = 5 * 1024 * 1024
+CONFIG_FILE = os.environ.get("GITHUB_CONFIG_FILE", "/data/github.json")
 
 
 class GithubSync:
     def __init__(self, storage):
         self.storage = storage
         self.api = os.environ.get("GITHUB_API", "https://api.github.com").rstrip("/")
-        self.repo = os.environ.get("GITHUB_REPO", "").strip()
-        self.token = os.environ.get("GITHUB_TOKEN", "").strip()
-        self.branch = os.environ.get("GITHUB_BRANCH", "main").strip() or "main"
-        self.path = os.environ.get("GITHUB_PATH", "typewords/progress.json").strip()
-        self.snapshot_dir = os.environ.get("GITHUB_SNAPSHOT_DIR", "typewords/daily").strip()
-        self.auto_push = os.environ.get("GITHUB_AUTO_PUSH", "1").strip().lower() not in ("0", "false", "no", "off")
+        self.env_defaults = {
+            "repo": os.environ.get("GITHUB_REPO", "").strip(),
+            "token": os.environ.get("GITHUB_TOKEN", "").strip(),
+            "branch": os.environ.get("GITHUB_BRANCH", "main").strip() or "main",
+            "path": os.environ.get("GITHUB_PATH", "typewords/progress.json").strip(),
+            "snapshotDir": os.environ.get("GITHUB_SNAPSHOT_DIR", "typewords/daily").strip(),
+            "autoPush": os.environ.get("GITHUB_AUTO_PUSH", "1").strip().lower() not in ("0", "false", "no", "off"),
+        }
+        self.config = dict(self.env_defaults)
+        self.source = "env" if self.env_defaults["repo"] and self.env_defaults["token"] else "none"
+        self.config_path = CONFIG_FILE
+        self._load_config_file()
         self.last_at = None
         self.last_error = None
         self.last_sha = None
@@ -37,12 +44,76 @@ class GithubSync:
         self._timer = None
         self._lock = threading.Lock()
 
+    # ---------- 配置读写（网页里填的配置优先级高于环境变量） ----------
+    def _load_config_file(self):
+        try:
+            with open(self.config_path, "r", encoding="utf-8") as handle:
+                saved = json.load(handle)
+        except (FileNotFoundError, ValueError, OSError):
+            return
+        if isinstance(saved, dict):
+            self.config = {**self.env_defaults, **saved}
+            self.source = "file"
+            if not self.config.get("branch"):
+                self.config["branch"] = "main"
+
+    def save_config(self, incoming):
+        next_config = dict(self.config)
+        for key in ("repo", "token", "branch", "path", "snapshotDir"):
+            value = incoming.get(key)
+            if isinstance(value, str) and value.strip():
+                next_config[key] = value.strip()
+        if "autoPush" in incoming:
+            next_config["autoPush"] = bool(incoming["autoPush"])
+        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        fd = os.open(self.config_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(next_config, handle, ensure_ascii=False, indent=1)
+        self.config = next_config
+        self.source = "file"
+        self.last_error = None
+        return self.status()
+
+    def clear_config(self):
+        try:
+            os.remove(self.config_path)
+        except FileNotFoundError:
+            pass
+        self.config = dict(self.env_defaults)
+        self.source = "env" if self.env_defaults["repo"] and self.env_defaults["token"] else "none"
+        return self.status()
+
+    @property
+    def repo(self):
+        return self.config.get("repo", "")
+
+    @property
+    def token(self):
+        return self.config.get("token", "")
+
+    @property
+    def branch(self):
+        return self.config.get("branch", "main")
+
+    @property
+    def path(self):
+        return self.config.get("path", "typewords/progress.json")
+
+    @property
+    def snapshot_dir(self):
+        return self.config.get("snapshotDir", "typewords/daily")
+
+    @property
+    def auto_push(self):
+        return bool(self.config.get("autoPush", True))
+
     # ---------- 对外状态 ----------
     @property
     def configured(self):
         return bool(self.repo and self.token)
 
     def status(self):
+        token = self.token
         return {
             "configured": self.configured,
             "repo": self.repo or None,
@@ -50,6 +121,9 @@ class GithubSync:
             "path": self.path,
             "snapshotDir": self.snapshot_dir,
             "autoPush": self.auto_push,
+            "source": self.source,
+            "hasToken": bool(token),
+            "tokenHint": ("****" + token[-4:]) if len(token) >= 8 else ("****" if token else ""),
             "lastSyncAt": self.last_at,
             "lastError": self.last_error,
             "lastSnapshot": self.last_snapshot,
