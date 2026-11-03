@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, nextTick, watch } from 'vue'
 import { createEmptyCard, Rating } from 'ts-fsrs'
 import { useBaseStore } from '@/core/stores/base.ts'
 import { usePracticeStore } from '@/core/stores/practice.ts'
@@ -23,6 +23,7 @@ import { createPracticeWordNavigator } from './usePracticeWordNavigator.ts'
 import { usePracticeDisplayPolicy } from './usePracticeDisplayPolicy.ts'
 import type { PracticeNotifier } from './practice-flow-types.ts'
 import { createStudyTask } from './study-task.ts'
+import { advanceFilteredStudyIndex, normalizeWordKey } from '@/core/utils/simple-word-filter'
 
 export interface PracticeWordSessionOptions {
   getPracticeData: () => PracticeData
@@ -57,6 +58,9 @@ export function usePracticeWordSession(options: PracticeWordSessionOptions) {
   const { getGradeByWrongTimes } = useGetGradeByWrongTimes()
   const { nextCard } = useNextCard()
   let identifyTypingWrongIndex = -1
+  let sessionReady = false
+  let filterReconcilePending = false
+  let taskStartIndex = store.sdict.lastLearnIndex
   const getPracticeMode = () => options.getPracticeMode?.() ?? settingStore.wordPracticeMode
 
   const currentWord = computed(() => {
@@ -77,14 +81,36 @@ export function usePracticeWordSession(options: PracticeWordSessionOptions) {
     checkWordIsNeedNext(word) {
       if (!word.word) return false
       const data = options.getPracticeData()
-      return isWordSimple(word) || data.excludeWords.includes(word.word)
+      return store.getIgnoreWordsSet().has(normalizeWordKey(word.word)) || data.excludeWords.includes(word.word)
     },
-    complete: options.complete,
+    complete() {
+      sessionReady = false
+      options.complete()
+    },
     notify: options.notify,
   })
 
   const { activeFlowConfig, activeCursor, currentPhase, currentPracticeType, currentPhaseKey } = nav
   const display = usePracticeDisplayPolicy(currentPracticeType, currentPhaseKey)
+
+  function reconcileSimpleWordFilter() {
+    if (!sessionReady || filterReconcilePending) return
+    filterReconcilePending = true
+    nextTick(() => {
+      filterReconcilePending = false
+      if (!sessionReady) return
+      if (currentWord.value.word && store.getIgnoreWordsSet().has(normalizeWordKey(currentWord.value.word))) {
+        nav.next(false)
+      }
+      if (sessionReady) options.scheduleSave()
+    })
+  }
+
+  watch(
+    [() => settingStore.ignoreSimpleWord, () => store.simpleWords.join('\n'), () => currentWord.value],
+    reconcileSimpleWordFilter,
+    { flush: 'post' }
+  )
 
   function updateQuestion() {
     const data = options.getPracticeData()
@@ -126,10 +152,14 @@ export function usePracticeWordSession(options: PracticeWordSessionOptions) {
       statStore.segments.push([now, now])
     }
     updateQuestion()
+    taskStartIndex = store.sdict.lastLearnIndex
+    sessionReady = true
+    reconcileSimpleWordFilter()
     return true
   }
 
   function initializeTask(taskWords: TaskWords): boolean {
+    sessionReady = false
     Object.assign(options.getTaskWords(), taskWords)
     try {
       const start = nav.resolveFlowStart(getPracticeMode(), options.getTaskWords())
@@ -150,6 +180,9 @@ export function usePracticeWordSession(options: PracticeWordSessionOptions) {
     statStore.segments = []
     statStore.resumeTimer()
     updateQuestion()
+    taskStartIndex = store.sdict.lastLearnIndex
+    sessionReady = true
+    reconcileSimpleWordFilter()
     return true
   }
 
@@ -250,15 +283,15 @@ export function usePracticeWordSession(options: PracticeWordSessionOptions) {
     nav.completeCurrentList()
   }
 
-  function updateCompletedDictProgress(ignoreScope: 'remaining' | 'all') {
+  function updateCompletedDictProgress() {
     if (getPracticeMode() === WordPracticeMode.Shuffle) return
-    store.sdict.lastLearnIndex += statStore.newWordNumber
-    const ignoreList = [store.allIgnoreWords, store.knownWords][settingStore.ignoreSimpleWord ? 0 : 1]
-    const wordsToCheck = ignoreScope === 'remaining'
-      ? store.sdict.words.slice(store.sdict.lastLearnIndex)
-      : store.sdict.words
-    const ignoreCount = ignoreList.filter(key => wordsToCheck.some(word => word.word === key)).length
-    if (store.sdict.lastLearnIndex + ignoreCount >= store.sdict.length) {
+    store.sdict.lastLearnIndex = advanceFilteredStudyIndex(
+      store.sdict.words,
+      options.getTaskWords().new,
+      store.sdict.lastLearnIndex,
+      store.getIgnoreWordsSet()
+    )
+    if (store.sdict.lastLearnIndex >= store.sdict.length) {
       store.sdict.complete = true
       store.sdict.lastLearnIndex = store.sdict.length
     }
@@ -267,7 +300,7 @@ export function usePracticeWordSession(options: PracticeWordSessionOptions) {
   function settleLocalPractice() {
     const data = options.getPracticeData()
     statStore.wrong = data.allWrongWords.length
-    updateCompletedDictProgress('remaining')
+    updateCompletedDictProgress()
     if (!statStore.timerPaused && statStore.segments.length > 0) {
       statStore.segments[statStore.segments.length - 1][1] = Date.now()
     }
@@ -283,13 +316,13 @@ export function usePracticeWordSession(options: PracticeWordSessionOptions) {
 
   function createRepeatTask(): TaskWords {
     const taskWords = cloneDeep(options.getTaskWords())
-    const ignoreSet = [store.allIgnoreWordsSet, store.knownWordsSet][settingStore.ignoreSimpleWord ? 0 : 1]
+    const ignoreSet = store.getIgnoreWordsSet()
     if (getPracticeMode() === WordPracticeMode.Shuffle) {
-      taskWords.review = shuffle(taskWords.review.filter(word => !ignoreSet.has(word.word)))
+      taskWords.review = shuffle(taskWords.review.filter(word => !ignoreSet.has(normalizeWordKey(word.word))))
     } else {
-      store.sdict.lastLearnIndex -= statStore.newWordNumber
-      taskWords.new = taskWords.new.filter(word => !ignoreSet.has(word.word))
-      taskWords.review = taskWords.review.filter(word => !ignoreSet.has(word.word))
+      store.sdict.lastLearnIndex = taskStartIndex
+      taskWords.new = taskWords.new.filter(word => !ignoreSet.has(normalizeWordKey(word.word)))
+      taskWords.review = taskWords.review.filter(word => !ignoreSet.has(normalizeWordKey(word.word)))
     }
     return taskWords
   }
@@ -309,7 +342,7 @@ export function usePracticeWordSession(options: PracticeWordSessionOptions) {
       }
     }
 
-    if (!wasComplete) updateCompletedDictProgress('all')
+    if (!wasComplete) updateCompletedDictProgress()
     return createStudyTask().taskWords
   }
 

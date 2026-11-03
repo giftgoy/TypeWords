@@ -490,3 +490,6 @@ a {
 .highlight-word {
   color: var(--color-select-bg);
 }
+
+.guide-entry-button { border: 1px solid var(--color-line); border-radius: 8px; padding: 9px 14px; background: var(--color-second); color: var(--color-main-text); font: inherit; font-size: 13px; cursor: pointer; }
+.empty-task-message { padding: 12px 14px; border: 1px solid var(--color-line); border-radius: 8px; line-height: 1.8; }

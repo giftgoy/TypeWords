@@ -103,6 +103,23 @@ test('cancellation and rapid replacement cannot complete an obsolete sentence', 
   assert.match(env.audio[0].src, /text=Latest/)
 })
 
+test('natural speech notifies both the preview and the pronunciation watchdog when playback starts', async () => {
+  const env = setup()
+  let previewStarted = 0
+  let pronunciationStarted = 0
+  await env.useTTsPlayAudio()('Hello', {
+    onStart: () => previewStarted++,
+    onPlay: () => pronunciationStarted++,
+  })
+  const started = env.audio[0].onplaying
+  started()
+  assert.equal(previewStarted, 1)
+  assert.equal(pronunciationStarted, 1)
+  env.cancelTtsAudio()
+  started()
+  assert.equal(pronunciationStarted, 1)
+})
+
 test('voice loading preserves other listeners and cleans up concurrent waiters', async () => {
   const env = setup()
   const original = env.synthesis.onvoiceschanged

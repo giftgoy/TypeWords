@@ -110,12 +110,11 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (props.modelValue === undefined) {
-    visible = false
-    let rIndex = modalStack.findIndex(item => item.id === id)
-    if (rIndex > -1) {
-      modalStack.splice(rIndex, 1)
-    }
+  window.removeEventListener('keydown', onKeyDown)
+  visible = false
+  const rIndex = modalStack.findIndex(item => item.id === id)
+  if (rIndex > -1) {
+    modalStack.splice(rIndex, 1)
   }
 })
 

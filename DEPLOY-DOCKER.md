@@ -117,7 +117,7 @@ nuxt.config.ts        # 修改：i18n.detectBrowserLanguage = false（固定中�
 
 ## 4. 已知限制（都是上游项目本身的，不是部署问题）
 
-1. **只带 CET-4 词库 + 新概念 1 册**：仓库只分发 `public/list/word.json`、`public/dicts/en/word/CET4_T.json`、`article/NCE_1.json`，官方站的四六级/GRE/雅思等词库没有开源分发。想扩充词库需自行准备 JSON 后放进 `public/dicts/`。
+1. **资源市场内容与来源**：已合入扩充词库和分级读物。具体资源及授权信息见 `docs/resource-market.md`、`public/list/resource-sources.json` 与 `public/resource-licenses/`。
 2. **发音需要外网**：单词发音走 `https://dict.youdao.com/dictvoice`，断网时无声（界面其余功能不受影响）。
 3. **账号 / 云同步 / 微信小程序相关功能不可用**：它们指向线上服务（`http://localhost/` 之类的默认 API 地址），本地部署只需单机学习。
 4. **service-worker.js 404**：上游仓库里就没有这个文件，浏览器控制台会有一条注册失败日志，不影响使用。

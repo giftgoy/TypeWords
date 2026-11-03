@@ -3,6 +3,7 @@ import { useBaseStore } from '@/core/stores/base.ts'
 import { useSettingStore } from '@/core/stores/setting.ts'
 import type { TaskWords, Word } from '@/core/types/types.ts'
 import { shuffle } from '@/core/utils'
+import { normalizeWordKey } from '@/core/utils/simple-word-filter'
 
 export interface StudyTaskResult {
   taskWords: TaskWords
@@ -32,12 +33,12 @@ export function addRandomReviewWhenNoDue(taskWords: TaskWords, options: AddRando
 
   const excludedWords = new Set([
     ...options.ignoreSet,
-    ...taskWords.new.map(item => item.word),
-    ...taskWords.review.map(item => item.word),
+    ...taskWords.new.map(item => normalizeWordKey(item.word)),
+    ...taskWords.review.map(item => normalizeWordKey(item.word)),
   ])
   const learnedEnd = Math.min(options.lastLearnIndex, options.words.length)
   const randomReviewWords = shuffle(
-    options.words.slice(0, learnedEnd).filter(item => !excludedWords.has(item.word))
+    options.words.slice(0, learnedEnd).filter(item => !excludedWords.has(normalizeWordKey(item.word)))
   ).slice(0, totalNeed)
 
   taskWords.review = taskWords.review.concat(randomReviewWords)

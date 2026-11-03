@@ -365,15 +365,13 @@ const Dialog = defineAsyncComponent(() => import('@/base/dialog/Dialog.vue'))
 // QR 弹窗状态
 let showQrDialog = $ref(false)
 let currentResourceName = $ref('')
+let currentResourceUrl = $ref('')
 let qrDataUrl = $ref('')
 
 // 生成二维码并显示弹窗
 async function openLink(url: string, name?: string) {
-  if (url === 'https://v.v8l.cn/s/TG3sgVg') {
-    window.open(url, '_blank')
-    return
-  }
   currentResourceName = name || ''
+  currentResourceUrl = url
   try {
     qrDataUrl = await QRCode.toDataURL(url, {
       width: 300,
@@ -397,8 +395,11 @@ async function openLink(url: string, name?: string) {
       <div class="text-center mb-8">
         <h1 class="text-4xl font-bold mb-4">{{ $t('resource_sharing') }}</h1>
         <p class="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-          以下是整理的一些英语学习资源，希望对大家有所帮助！
+          以下为外部网站与网盘资料。点击即可在新标签页打开；手机扫码是可选入口。若要直接开始练习，请前往词典或分级文章市场。
         </p>
+        <div class="flex justify-center gap-4 mt-4">
+          <NuxtLink to="/dict-list">词典市场 →</NuxtLink><NuxtLink to="/book-list">分级文章市场 →</NuxtLink>
+        </div>
       </div>
 
       <!-- 分类筛选 -->
@@ -443,7 +444,7 @@ async function openLink(url: string, name?: string) {
                   v-for="resource in subcategory.resources"
                   :key="resource.name"
                   :resource="resource"
-                  @openLink="(url: string) => openLink(url, resource.name)"
+                  @showQr="(url: string) => openLink(url, resource.name)"
                 />
               </div>
             </div>
@@ -456,7 +457,7 @@ async function openLink(url: string, name?: string) {
                 v-for="resource in category.resources"
                 :key="resource.name"
                 :resource="resource"
-                @openLink="(url: string) => openLink(url, resource.name)"
+                @showQr="(url: string) => openLink(url, resource.name)"
               />
             </div>
           </template>
@@ -485,7 +486,8 @@ async function openLink(url: string, name?: string) {
         <div class="text-center">
           <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR Code" class="w-70 rounded-lg shadow-md" />
         </div>
-        <p class="text-center text-gray-600 text-xl font-bold dark:text-gray-300">请在手机上打开夸克 App 扫码访问</p>
+        <p class="text-center text-gray-600 dark:text-gray-300">可用手机浏览器或相应网盘 App 扫码访问</p>
+        <a :href="currentResourceUrl" target="_blank" rel="noopener noreferrer">也可以直接在浏览器打开 →</a>
       </div>
     </Dialog>
   </BasePage>

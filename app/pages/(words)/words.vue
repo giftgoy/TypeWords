@@ -22,7 +22,6 @@ import {
   debounce,
   getShufflePracticeWords,
   isMobile,
-  loadJsLib,
   msToHourMinute,
   resourceWrap,
   type ShufflePracticeSetting,
@@ -41,10 +40,8 @@ import { useFetch } from '@vueuse/core'
 import {
   APP_NAME,
   DICT_LIST,
-  LIB_JS_URL,
   Old_Host,
   Origin,
-  TourConfig,
   WordPracticeModeNameMap,
   WordPracticeModeUrlMap,
 } from '@/core/config/env.ts'
@@ -61,7 +58,9 @@ import {
 import dayjs from 'dayjs'
 import { getActiveCustomFlowId, getUserFlow } from '@/core/composables/practice-words/practice-flow-runtime.ts'
 import { createStudyTask } from '@/core/composables/practice-words/study-task.ts'
+import { countPracticeWords, getReviewWordLimit } from '@/core/utils/learning-guide'
 
+const guide = useLearningGuide()
 const store = useBaseStore()
 const settingStore = useSettingStore()
 const wordPersistence = usePracticeWordPersistence()
@@ -90,9 +89,9 @@ useSeoMeta({
   title: `在线背单词与英语打字练习｜${APP_NAME}`,
   description: '在电脑上选择 CET-4、CET-6、考研、GRE、IELTS 等词库，通过键盘跟打、拼写和科学间隔复习高效背单词。',
   ogTitle: `在线背单词与英语打字练习｜${APP_NAME}`,
-  ogDescription: '在电脑上用键盘打字背单词，支持 50+ 词库和科学间隔复习。',
+  ogDescription: '在电脑上用键盘打字背单词，支持词典市场和智能复习（FSRS）。',
   twitterTitle: `在线背单词与英语打字练习｜${APP_NAME}`,
-  twitterDescription: '在电脑上用键盘打字背单词，支持 50+ 词库和科学间隔复习。',
+  twitterDescription: '在电脑上用键盘打字背单词，支持词典市场和智能复习（FSRS）。',
 })
 
 let practiceData = $ref<PracticeWordCache>({
@@ -122,13 +121,11 @@ function toggleAutoAddRandomReview(enabled: boolean) {
 }
 
 const effectiveReviewRatio = $computed(() => {
-  const dict = store.sdict
-  const isEnd = dict.length !== 1 && dict.lastLearnIndex >= dict.length - 1
-  return isEnd ? settingStore.wordReviewRatio || 1 : settingStore.wordReviewRatio
+  return settingStore.wordReviewRatio
 })
 
 const reviewWordLimit = $computed(() => {
-  return Math.max(0, Math.floor(store.sdict.perDayStudyNumber * effectiveReviewRatio))
+  return getReviewWordLimit(store.sdict.perDayStudyNumber, effectiveReviewRatio)
 })
 
 const reviewWordTip = $computed(() => {
@@ -168,32 +165,6 @@ watch(
   debounce(([a, b]) => {
     if (a && !b) {
       init()
-      _nextTick(async () => {
-        const Shepherd = await loadJsLib('Shepherd', LIB_JS_URL.SHEPHERD)
-        const tour = new Shepherd.Tour(TourConfig)
-        tour.on('cancel', () => {
-          localStorage.setItem('tour-guide', '1')
-        })
-        tour.addStep({
-          id: 'step1',
-          text: '点击这里选择一本词典开始学习',
-          attachTo: {
-            element: '#step1',
-            on: 'bottom',
-          },
-          buttons: [
-            {
-              text: `下一步（1/${TourConfig.total}）`,
-              action() {
-                tour.next()
-                router.push('/dict-list')
-              },
-            },
-          ],
-        })
-        const r = localStorage.getItem('tour-guide')
-        if (settingStore.first && !r && !isMobile()) tour.start()
-      }, 500)
     }
   }),
   { immediate: true }
@@ -268,7 +239,10 @@ async function startPractice(practiceMode: WordPracticeMode, resetCache: boolean
       return
     }
   }
-  if (resetCache) await resetCacheData()
+  if (resetCache) {
+    await resetCacheData()
+    refreshStudyTask()
+  }
 
   if (shouldShowDialogPracticeMode.includes(practiceMode) && !isSaveData) {
     editingWordPracticeMode = practiceMode
@@ -282,6 +256,16 @@ async function startPractice(practiceMode: WordPracticeMode, resetCache: boolean
       return
     }
 
+    if (practiceMode === WordPracticeMode.Free && !countPracticeWords(practiceData.taskWords)) {
+      const ignore = store.getIgnoreWordsSet()
+      practiceData.taskWords = {
+        new: [],
+        review: store.sdict.words
+          .filter(word => !ignore.has(word.word.trim().toLowerCase()))
+          .slice(0, store.sdict.perDayStudyNumber),
+      }
+    }
+    if (!countPracticeWords(practiceData.taskWords, practiceMode === WordPracticeMode.Review)) return
     settingStore.wordPracticeMode = practiceMode
 
     window.umami?.track('startStudyWord', {
@@ -513,6 +497,10 @@ async function onShufflePracticeSettingOk(setting: ShufflePracticeSetting) {
   })
 
   const result = getShufflePracticeWords(store.sdict.words, setting, store.getIgnoreWordsSet())
+  if (!result.words.length) {
+    Toast.info('所选范围内没有可练习的单词，请调整范围或简单词过滤。')
+    return
+  }
   practiceData.taskWords.review = result.words
   nav(
     WordPracticeModeUrlMap[editingWordPracticeMode] + '/' + store.sdict.id,
@@ -548,6 +536,22 @@ const systemPracticeText = $computed(() => {
   }
 })
 
+const taskWordCount = $computed(() =>
+  countPracticeWords(practiceData.taskWords, settingStore.wordPracticeMode === WordPracticeMode.Review)
+)
+const hasFreePracticeWords = $computed(() =>
+  store.sdict.words.some(word => !store.getIgnoreWordsSet().has(word.word.trim().toLowerCase()))
+)
+const emptyTaskMessage = $computed(() => {
+  if (!store.sdict.id || loading || taskWordCount) return ''
+  if (!hasFreePracticeWords) return '当前词汇已全部掌握或被过滤。可以调整简单词名单、学习起点，或换一本词典。'
+  if (reviewWordLimit === 0) return '当前没有待学新词，且复习上限设为 0。可以在“更改”中调高复习上限，或选择自由练习。'
+  return '今天没有待学新词或到期复习词，可以先休息，也可以自由练习或到词典市场选择新内容。'
+})
+watch([() => settingStore.ignoreSimpleWord, () => store.simpleWords.join('\n')], () => {
+  if (store.load && !isSaveData && !loading) refreshStudyTask()
+})
+
 let isOldHost = $ref(false)
 onMounted(() => {
   isOldHost = window.location.host === Old_Host
@@ -560,6 +564,15 @@ onUnmounted(() => {
 
 <template>
   <BasePage class="study-page">
+    <div class="card flex flex-wrap items-center justify-between gap-3" aria-label="学习入门">
+      <div>
+        <strong>按自己的节奏开始</strong>
+        <p class="text-sm color-sub-text mt-1">选择词典 → 设置每日目标 → 用键盘练习。需要时随时重看引导。</p>
+      </div>
+      <button type="button" class="guide-entry-button" @click="guide.start">
+        {{ guide.state.value.status === 'idle' ? '开始入门引导' : '重看入门引导' }}
+      </button>
+    </div>
     <div class="my-100 text-4xl font-bold text-red" v-if="isOldHost">
       已启用新域名
       <a class="mr-4" :href="`${Origin}/words?from_old_site=1`">{{ Origin }}</a
@@ -597,7 +610,7 @@ onUnmounted(() => {
             </div>
           </div>
           <div class="flex items-center mt-4 gap-4">
-            <BaseButton type="info" size="small" @click="router.push('/dict-list')">
+            <BaseButton id="choose-dictionary" type="info" size="small" @click="router.push('/dict-list')">
               <div class="center gap-1">
                 <IconFluentArrowSwap20Regular />
                 <span>{{ $t('select_dict') }}</span>
@@ -620,7 +633,7 @@ onUnmounted(() => {
 
         <div class="flex items-center gap-4 mt-2 flex-1" v-else>
           <div class="title">{{ $t('select_dict_to_start') }}</div>
-          <BaseButton id="step1" type="primary" size="large" @click="router.push('/dict-list')">
+          <BaseButton id="choose-dictionary" type="primary" size="large" @click="router.push('/dict-list')">
             <div class="center gap-1">
               <IconFluentAdd16Regular />
               <span>{{ $t('select_dict') }}</span>
@@ -684,6 +697,11 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+        <div v-if="emptyTaskMessage" class="empty-task-message mt-4 text-sm" role="status">
+          <p>{{ emptyTaskMessage }}</p>
+          <NuxtLink to="/dict-list">选择新词典</NuxtLink><span> · </span
+          ><NuxtLink to="/setting">调整简单词过滤</NuxtLink>
+        </div>
         <div class="flex items-end flex-wrap mt-4 gap-4 btn-no-margin">
           <OptionButton
             :class="settingStore.wordPracticeMode !== WordPracticeMode.Free ? 'flex-1 orange-btn' : 'primary-btn'"
@@ -691,12 +709,12 @@ onUnmounted(() => {
             <BaseButton
               size="large"
               :type="settingStore.wordPracticeMode !== WordPracticeMode.Free ? 'orange' : 'primary'"
-              :disabled="!store.sdict.id"
+              :disabled="!store.sdict.id || !taskWordCount"
               :loading="loading"
               @click="systemPractice"
             >
               <div class="flex items-center gap-2">
-                <span class="line-height-[2]">{{ systemPracticeText }}</span>
+                <span class="line-height-[2]">{{ emptyTaskMessage ? '暂无学习任务' : systemPracticeText }}</span>
                 <IconFluentArrowCircleRight16Regular class="text-xl" />
               </div>
             </BaseButton>
@@ -723,7 +741,7 @@ onUnmounted(() => {
               <BaseButton
                 class="w-full"
                 v-if="settingStore.wordPracticeMode !== WordPracticeMode.Shuffle"
-                :disabled="store.sdict.lastLearnIndex < 10 && !store.sdict.complete"
+                :disabled="!hasFreePracticeWords || (store.sdict.lastLearnIndex < 10 && !store.sdict.complete)"
                 @click="startPractice(WordPracticeMode.Shuffle, true)"
               >
                 {{ $t('random_review') }}
@@ -731,7 +749,7 @@ onUnmounted(() => {
               <BaseButton
                 class="w-full"
                 v-if="settingStore.wordPracticeMode !== WordPracticeMode.ReviewWordsTest"
-                :disabled="store.sdict.lastLearnIndex < 10 && !store.sdict.complete"
+                :disabled="!hasFreePracticeWords || (store.sdict.lastLearnIndex < 10 && !store.sdict.complete)"
                 @click="startPractice(WordPracticeMode.ReviewWordsTest, true)"
               >
                 {{ $t('words') }}{{ $t('test') }}
@@ -739,7 +757,7 @@ onUnmounted(() => {
               <BaseButton
                 class="w-full"
                 v-if="settingStore.wordPracticeMode !== WordPracticeMode.ShuffleWordsTest"
-                :disabled="store.sdict.lastLearnIndex < 10 && !store.sdict.complete"
+                :disabled="!hasFreePracticeWords || (store.sdict.lastLearnIndex < 10 && !store.sdict.complete)"
                 @click="startPractice(WordPracticeMode.ShuffleWordsTest, true)"
               >
                 {{ $t('random_words_test') }}
@@ -752,6 +770,7 @@ onUnmounted(() => {
             :type="settingStore.wordPracticeMode === WordPracticeMode.Free ? 'orange' : 'primary'"
             size="large"
             :loading="loading"
+            :disabled="!store.sdict.id || !hasFreePracticeWords"
             @click="freePractice()"
           >
             <div class="flex items-center gap-2">
@@ -769,7 +788,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div class="card flex flex-col xl:flex-row gap-4 xl:gap-20 p-4 md:p-6">
+    <div id="learning-records" class="card flex flex-col xl:flex-row gap-4 xl:gap-20 p-4 md:p-6">
       <div class="flex-1 flex flex-col gap-3 min-w-0">
         <div class="title">统计</div>
         <div class="flex gap-3 items-stretch w-full">
@@ -931,14 +950,32 @@ onUnmounted(() => {
   }
 }
 @media (max-width: 1279px) {
-  .study-page :deep(.card) { min-width: 0; }
+  .study-page :deep(.card) {
+    min-width: 0;
+  }
 }
 @media (max-width: 768px) {
-  .study-page :deep(.card > .flex.justify-between) { flex-wrap: wrap; gap: 12px; }
-  .task-heading { flex-wrap: wrap; gap: 8px; }
-  .stat .num { flex-wrap: wrap; font-size: 1.75rem; }
-  .stat2 { min-width: 0; }
-  .stat2 .num { white-space: normal; overflow-wrap: anywhere; }
-  .stat2 .txt { font-size: 14px; }
+  .study-page :deep(.card > .flex.justify-between) {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .task-heading {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .stat .num {
+    flex-wrap: wrap;
+    font-size: 1.75rem;
+  }
+  .stat2 {
+    min-width: 0;
+  }
+  .stat2 .num {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .stat2 .txt {
+    font-size: 14px;
+  }
 }
 </style>

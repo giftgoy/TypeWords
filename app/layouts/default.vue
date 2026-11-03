@@ -14,12 +14,15 @@ import { useI18n } from 'vue-i18n'
 import { Supabase } from '@/core/utils/supabase.ts'
 import MiniProgram from '@/components/MiniProgram.vue'
 import WordCollectPopover from '@/components/word/WordCollectPopover.vue'
+import LearningGuide from '@/components/LearningGuide.vue'
+import { isOfficialDeployment } from '@/core/utils/learning-guide'
 
 const router = useRouter()
 const { toggleTheme, getTheme, setTheme } = useTheme()
 const runtimeStore = useRuntimeStore()
 const settingStore = useSettingStore()
 const expand = $computed(() => settingStore.sideExpand)
+let officialDeployment = $ref(false)
 const init = useInit()
 
 watch(
@@ -55,10 +58,10 @@ const showIcon = $computed(() => {
 })
 
 onMounted(() => {
+  officialDeployment = isOfficialDeployment(window.location.hostname)
   init()
   window.umami?.track('sync', { check: Supabase.check() })
 })
-
 </script>
 
 <template>
@@ -89,6 +92,28 @@ onMounted(() => {
         <NuxtLink id="article" to="/articles" class="row" :title="$t('articles')" :aria-label="$t('articles')">
           <IconFluentBookLetter20Regular />
           <span>{{ $t('articles') }}</span>
+        </NuxtLink>
+        <NuxtLink
+          to="/dict-list"
+          class="row"
+          :class="{ 'router-link-active': route.path === '/book-list' }"
+          aria-label="资源市场"
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+          <span>资源市场</span>
         </NuxtLink>
         <NuxtLink to="/feedback" class="row" :title="$t('feedback')" :aria-label="$t('feedback')">
           <IconFluentCommentEdit20Regular />
@@ -171,7 +196,7 @@ onMounted(() => {
       <router-view></router-view>
 
       <div class="absolute right-4 top-4 flex z-1 gap-2" v-if="showIcon">
-        <MiniProgram v-if="settingStore.load && !settingStore.first" />
+        <MiniProgram v-if="officialDeployment && settingStore.load && !settingStore.first" />
 
         <div class="relative group">
           <BaseIcon>
@@ -198,6 +223,7 @@ onMounted(() => {
       </div>
     </div>
     <WordCollectPopover />
+    <LearningGuide />
   </div>
 </template>
 
@@ -246,15 +272,19 @@ onMounted(() => {
   }
 }
 
-
 .sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 44px;
   gap: 4px;
-  :deep(img) { max-width: 100%; height: auto; }
-  > :first-child:not(button) { min-width: 0; }
+  :deep(img) {
+    max-width: 100%;
+    height: auto;
+  }
+  > :first-child:not(button) {
+    min-width: 0;
+  }
 }
 .nav-button {
   display: flex;
@@ -270,17 +300,36 @@ onMounted(() => {
   color: var(--color-main-text);
   cursor: pointer;
   font: inherit;
-  &:hover { background: var(--color-fourth); }
-  &:focus-visible { outline: 2px solid var(--color-select-bg); outline-offset: 2px; }
-  svg { font-size: 20px; }
+  &:hover {
+    background: var(--color-fourth);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-select-bg);
+    outline-offset: 2px;
+  }
+  svg {
+    font-size: 20px;
+  }
 }
-.hidden-span .top { padding-inline: 14px; }
-.main-content { min-width: 0; }
-.mobile-top-nav { display: none; }
+.hidden-span .top {
+  padding-inline: 14px;
+}
+.main-content {
+  min-width: 0;
+}
+.mobile-top-nav {
+  display: none;
+}
 @media (max-width: 768px) {
-  .layout { --mobile-nav-height: 108px; }
-  .mobile-nav-collapsed { --mobile-nav-height: 44px; }
-  .aside { display: none; }
+  .layout {
+    --mobile-nav-height: 108px;
+  }
+  .mobile-nav-collapsed {
+    --mobile-nav-height: 44px;
+  }
+  .aside {
+    display: none;
+  }
   .main-content {
     width: 100%;
     padding-top: calc(var(--mobile-nav-height) + 12px);
@@ -309,8 +358,12 @@ onMounted(() => {
     cursor: pointer;
     position: relative;
     font-size: 12px;
-    svg { font-size: 20px; }
-    &.active { color: var(--color-select-bg); }
+    svg {
+      font-size: 20px;
+    }
+    &.active {
+      color: var(--color-select-bg);
+    }
   }
   .nav-toggle {
     width: 100%;
@@ -322,6 +375,8 @@ onMounted(() => {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .aside { transition: none; }
+  .aside {
+    transition: none;
+  }
 }
 </style>

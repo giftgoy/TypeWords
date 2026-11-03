@@ -1,24 +1,207 @@
 [
   {
+    "id": "graded-a1",
+    "enName": "graded-a1",
+    "name": "A1 · 生活中的第一句话",
+    "description": "从清晨、购物和公园开始，用短句读懂身边的小事。",
+    "category": "生活与成长",
+    "tags": [
+      "入门",
+      "日常生活",
+      "双语对照"
+    ],
+    "level": "A1",
+    "levelNote": "参考难度，非官方 CEFR 评级",
+    "learningFocus": "一般现在时、基础问答、常见生活词汇",
+    "icon": "A1",
+    "accent": "mint",
+    "url": "graded-a1.json",
+    "length": 4,
+    "type": "article",
+    "language": "en",
+    "translateLanguage": "zh-CN",
+    "version": 1,
+    "source": "原创双语读物",
+    "license": "CC0-1.0",
+    "wordRange": [
+      74,
+      80
+    ],
+    "featured": true
+  },
+  {
+    "id": "graded-a2",
+    "enName": "graded-a2",
+    "name": "A2 · 把日子过成小故事",
+    "description": "一次短途旅行、一张借书卡，在熟悉的场景里练习讲故事。",
+    "category": "生活与成长",
+    "tags": [
+      "基础",
+      "旅行",
+      "双语对照"
+    ],
+    "level": "A2",
+    "levelNote": "参考难度，非官方 CEFR 评级",
+    "learningFocus": "一般过去时、比较、计划和日常叙述",
+    "icon": "A2",
+    "accent": "sky",
+    "url": "graded-a2.json",
+    "length": 4,
+    "type": "article",
+    "language": "en",
+    "translateLanguage": "zh-CN",
+    "version": 1,
+    "source": "原创双语读物",
+    "license": "CC0-1.0",
+    "wordRange": [
+      93,
+      104
+    ],
+    "featured": true
+  },
+  {
+    "id": "graded-b1",
+    "enName": "graded-b1",
+    "name": "B1 · 成长与小小改变",
+    "description": "讲述一次尝试、解释一个选择，在完整语境中拓展表达。",
+    "category": "生活与成长",
+    "tags": [
+      "中级",
+      "个人成长",
+      "双语对照"
+    ],
+    "level": "B1",
+    "levelNote": "参考难度，非官方 CEFR 评级",
+    "learningFocus": "经历叙述、原因与结果、观点和感受",
+    "icon": "B1",
+    "accent": "indigo",
+    "url": "graded-b1.json",
+    "length": 4,
+    "type": "article",
+    "language": "en",
+    "translateLanguage": "zh-CN",
+    "version": 1,
+    "source": "原创双语读物",
+    "license": "CC0-1.0",
+    "wordRange": [
+      109,
+      120
+    ],
+    "featured": true
+  },
+  {
+    "id": "graded-b2",
+    "enName": "graded-b2",
+    "name": "B2 · 看见社会与科技",
+    "description": "从城市、地图和维修文化出发，练习比较观点与分析利弊。",
+    "category": "社会与科技",
+    "tags": [
+      "中高级",
+      "社会观察",
+      "双语对照"
+    ],
+    "level": "B2",
+    "levelNote": "参考难度，非官方 CEFR 评级",
+    "learningFocus": "论点展开、让步转折、抽象概念与因果分析",
+    "icon": "B2",
+    "accent": "amber",
+    "url": "graded-b2.json",
+    "length": 4,
+    "type": "article",
+    "language": "en",
+    "translateLanguage": "zh-CN",
+    "version": 1,
+    "source": "原创双语读物",
+    "license": "CC0-1.0",
+    "wordRange": [
+      151,
+      158
+    ],
+    "featured": false
+  },
+  {
+    "id": "graded-c1",
+    "enName": "graded-c1",
+    "name": "C1 · 复杂世界的多重视角",
+    "description": "探索专业判断、城市生活与语言，读懂隐含立场和细微差异。",
+    "category": "思辨与文化",
+    "tags": [
+      "高级",
+      "批判阅读",
+      "双语对照"
+    ],
+    "level": "C1",
+    "levelNote": "参考难度，非官方 CEFR 评级",
+    "learningFocus": "复杂论证、隐含态度、语域变化与语义辨析",
+    "icon": "C1",
+    "accent": "rose",
+    "url": "graded-c1.json",
+    "length": 4,
+    "type": "article",
+    "language": "en",
+    "translateLanguage": "zh-CN",
+    "version": 1,
+    "source": "原创双语读物",
+    "license": "CC0-1.0",
+    "wordRange": [
+      158,
+      170
+    ],
+    "featured": false
+  },
+  {
+    "id": "graded-c2",
+    "enName": "graded-c2",
+    "name": "C2 · 在文字之间思辨",
+    "description": "面对指标、历史与公共讨论，辨认修辞、假设和立场之间的张力。",
+    "category": "思辨与文化",
+    "tags": [
+      "精通挑战",
+      "深度阅读",
+      "双语对照"
+    ],
+    "level": "C2",
+    "levelNote": "参考难度，非官方 CEFR 评级",
+    "learningFocus": "修辞与反讽、复杂限定、抽象推论与细腻立场",
+    "icon": "C2",
+    "accent": "indigo",
+    "url": "graded-c2.json",
+    "length": 4,
+    "type": "article",
+    "language": "en",
+    "translateLanguage": "zh-CN",
+    "version": 1,
+    "source": "原创双语读物",
+    "license": "CC0-1.0",
+    "wordRange": [
+      194,
+      202
+    ],
+    "featured": false
+  },
+  {
     "id": 246,
     "enName": "nce1",
-    "name": "新概念英语1",
-    "description": "第一册《英语初阶》讲练基本语音、语调、语法、词法、句法及句型结构，是练好英语基本功的关键。",
-    "categoryId": 4,
+    "name": "新概念英语 1 · 示例",
+    "description": "项目原有的 5 篇入门对话，包含原版音频。",
+    "category": "经典教材",
+    "tags": [
+      "新概念英语",
+      "日常对话",
+      "含音频"
+    ],
     "url": "NCE_1.json",
-    "length": 72,
+    "length": 5,
     "language": "en",
-    "translateLanguage": "zh_CN",
-    "version": 1,
+    "translateLanguage": "zh-CN",
     "type": "article",
-    "isDefault": false,
-    "recommended": true,
-    "userId": "00000000-0000-0000-0000-000000000001",
-    "createdAt": "2026-05-12 02:04:50.831091",
-    "updatedAt": "2026-06-03 15:27:15.113708",
-    "cover": "\/imgs\/covers\/nce-1.png",
-    "hidden": false,
-    "category": "文章学习",
-    "tags": ["新概念英语"]
+    "version": 1,
+    "level": "A1",
+    "levelNote": "参考难度，非官方 CEFR 评级",
+    "icon": "N1",
+    "accent": "mint",
+    "source": "TypeWords 随附示例",
+    "sourceUrl": "https://github.com/giftgoy/TypeWords",
+    "cover": "/imgs/covers/nce-1.png"
   }
 ]

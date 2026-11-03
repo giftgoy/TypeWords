@@ -5,6 +5,7 @@ import { ref } from 'vue'
 import { ENV, PronunciationApi, SoundFileOptions } from '../config/env'
 import { Toast } from '@/base'
 import { withAppBaseURL } from '../utils/base-url'
+import { startPronunciation } from '@/core/utils/pronunciation'
 
 /**
  * 获取当前浏览器的 OS+浏览器 组合 key，用于 ttsVoiceMap 的索引
@@ -187,7 +188,7 @@ function playNetworkTts(
 ) {
   const audio = getCachedTextAudio()
   if (!audio) {
-    options.onError?.()
+    options.onError?.('在线发音和浏览器语音均未能播放。请重试，或查看单词继续练习。')
     options.onEnd?.()
     return
   }
@@ -204,14 +205,17 @@ function playNetworkTts(
     if (rest.length) playNetworkTts(text, options, generation, rest, onFailure)
     else if (onFailure) onFailure()
     else {
-      options.onError?.()
+      options.onError?.('在线发音和浏览器语音均未能播放。请重试，或查看单词继续练习。')
       options.onEnd?.()
     }
   }
   audio.onended = finish
   audio.onerror = fail
   audio.onplaying = () => {
-    if (generation === ttsPlaybackGeneration) options.onStart?.()
+    if (generation === ttsPlaybackGeneration) {
+      options.onStart?.()
+      options.onPlay?.()
+    }
   }
   audio.src = url
   audio.volume = options.volume ?? 1
@@ -232,6 +236,7 @@ export function cancelWordPracticeAudio() {
   cancelTtsAudio()
   const wordAudio = getCachedWordAudio()
   if (wordAudio) {
+    wordAudio.onplay = null
     wordAudio.onended = null
     wordAudio.onerror = null
     wordAudio.pause()
@@ -256,7 +261,13 @@ export function usePlayWordAudio() {
     getCachedWordAudio()
   })
 
-  function playAudio(word: string, handle: boolean = true, onEnd?: () => void, onPlay?: () => void) {
+  function playAudio(
+    word: string,
+    handle: boolean = true,
+    onEnd?: () => void,
+    onPlay?: () => void,
+    onError?: (message: string) => void
+  ) {
     const wordAudio = getCachedWordAudio()
     if (!word || !wordAudio) return
     cancelWordPracticeAudio()
@@ -280,25 +291,28 @@ export function usePlayWordAudio() {
       }, 5000)
     }
     // console.log('playAudio-handle', handle, playbackRate)
-    let url = `${PronunciationApi}${word}&type=2`
+    let url = `${PronunciationApi}${encodeURIComponent(word)}&type=2`
     if (settingStore.soundType === 'uk') {
-      url = `${PronunciationApi}${word}&type=1`
+      url = `${PronunciationApi}${encodeURIComponent(word)}&type=1`
     }
-    let onended = () => {
-      if (generation !== wordPlaybackGeneration) return
-      onEnd?.()
+    if (settingStore.wordSoundVolume <= 0) {
+      onError?.('单词音量为 0，请调整声音设置后重试。')
+      return
     }
-    wordAudio.onended = onended
-    wordAudio.onplay = () => onPlay?.()
-    wordAudio.onerror = () => {
-      if (generation !== wordPlaybackGeneration) return
-      const ttsPlay = useTTsPlayAudio()
-      ttsPlay(word, { rate: playbackRate, onEnd: onended })
-    }
-    wordAudio.src = url
-    wordAudio.volume = settingStore.wordSoundVolume / 100
-    wordAudio.playbackRate = playbackRate
-    void wordAudio.play()
+    startPronunciation({
+      audio: wordAudio,
+      source: url,
+      volume: settingStore.wordSoundVolume / 100,
+      rate: playbackRate,
+      isCurrent: () => generation === wordPlaybackGeneration,
+      onEnd,
+      onPlay,
+      onError: message => {
+        onError?.(message)
+        Toast.warning(message)
+      },
+      fallback: callbacks => useTTsPlayAudio()(word, { rate: playbackRate, ...callbacks }),
+    })
   }
 
   return playAudio
@@ -344,8 +358,9 @@ export interface TTsPlayOptions {
   lang?: string
   voice?: string
   onStart?: () => void
+  onPlay?: () => void
   onEnd?: () => void
-  onError?: () => void
+  onError?: (message: string) => void
   onFallback?: () => void
 }
 

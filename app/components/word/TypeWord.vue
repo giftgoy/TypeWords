@@ -18,10 +18,10 @@ import { getDefaultWord } from '@/core/types/func.ts'
 import { ShortcutKey, WordPlayTrigger, WordPracticeType } from '@/core/types/enum.ts'
 import { useBaseStore } from '@/core/stores/base.ts'
 import { useSettingStore } from '@/core/stores/setting.ts'
-import { usePlayWordAudio } from '@/core/hooks/sound.ts'
+import { cancelWordPracticeAudio, usePlayWordAudio } from '@/core/hooks/sound.ts'
 import { useInjectedDisplayPolicy } from '@/core/composables/practice-words/usePracticeDisplayPolicy.ts'
 import { EventKey, useEvents } from '@/core/utils/eventBus.ts'
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import WordLookupPopover from '@/components/word/WordLookupPopover.vue'
 import { BaseButton, BaseIcon, Textarea, Toast, ToastComponent, Tooltip, VolumeIcon } from '@/base'
 import { useI18n } from 'vue-i18n'
@@ -64,6 +64,9 @@ const store = useBaseStore()
 
 // ============ 音频 ============
 const playWordAudio = usePlayWordAudio()
+const audioError = ref('')
+const audioLoading = ref(false)
+const audioRevealed = ref(false)
 
 const volumeIconRef: any = $ref()
 let isTypingWord = $ref(true)
@@ -78,16 +81,30 @@ const typeWordController = usePracticeTypeWordController({
   getIsWordMasked: () => effective.value.isWordMasked,
   getAutoPlayFirstSentence: () => settingStore.autoPlayFirstSentence,
   onWrong: source => emit('wrong', source),
-  playWordAudio: (word, manual, onEnd) =>
-    playWordAudio(word, manual, onEnd, () => {
-      volumeIconRef?.animate(true)
-    }),
+  playWordAudio: (word, manual, onEnd) => {
+    audioLoading.value = true
+    playWordAudio(
+      word,
+      manual,
+      onEnd,
+      () => {
+        audioLoading.value = false
+        audioError.value = ''
+        volumeIconRef?.animate(true)
+      },
+      message => {
+        if (props.word.word !== word) return
+        audioLoading.value = false
+        audioError.value = message
+      }
+    )
+  },
   playFirstSentence: () => wordMetaPanelRef?.playSentence(0, { highlight: true }),
 })
 let { showFullWord, showWordResult } = $(typeWordController)
 
 const localReveal = computed(() => ({
-  showFullWord,
+  showFullWord: showFullWord || audioRevealed.value,
   showWordResult,
 }))
 const effective = useInjectedDisplayPolicy(localReveal)
@@ -119,6 +136,17 @@ function onTypingCoreWrong() {
 function onSentencePracticeComplete() {
   isTypingWord = true
   emit('complete')
+}
+
+const soundHelp = computed(
+  () =>
+    audioError.value ||
+    (effective.value.isWordMasked && (!settingStore.wordSound || settingStore.wordSoundVolume <= 0)
+      ? '自动发音已关闭或音量为 0。可手动重试发音，或打开声音设置。'
+      : '')
+)
+function revealForAudioFailure() {
+  audioRevealed.value = true
 }
 
 // ============ 单词操作 ============
@@ -258,7 +286,11 @@ const notice = $computed(() => {
 
 // ============ 重置：单词切换时 reset identify / note 状态 ============
 
-watch([() => props.word, () => props.phaseKey], onResetWord)
+watch([() => props.word, () => props.phaseKey], () => {
+  cancelWordPracticeAudio()
+  onResetWord()
+})
+onUnmounted(cancelWordPracticeAudio)
 
 // keyup 时隐藏单词
 useOnKeyboardEventListener(
@@ -269,6 +301,9 @@ useOnKeyboardEventListener(
 )
 
 function onResetWord() {
+  audioError.value = ''
+  audioLoading.value = false
+  audioRevealed.value = false
   isTypingWord = true
   typeWordController.reset()
   editingNote = false
@@ -314,6 +349,16 @@ useEvents([
 
 <template>
   <div class="typing-word" v-if="word.word.length">
+    <div v-if="soundHelp" class="audio-recovery" role="status">
+      <p>{{ soundHelp }}</p>
+      <div class="audio-recovery-actions">
+        <button type="button" @click="playWord(WordPlayTrigger.Manual)">重试发音</button>
+        <button v-if="effective.isWordMasked" type="button" @click="revealForAudioFailure">查看单词（不计错）</button>
+        <NuxtLink to="/setting?index=4">声音设置</NuxtLink>
+      </div>
+    </div>
+    <p v-else-if="audioLoading && effective.isWordMasked" class="audio-loading" role="status">正在加载发音…</p>
+
     <div class="flex flex-col items-center">
       <!-- 音标 + 发音按钮（通过 slot 传入 VolumeIcon） -->
       <div class="flex gap-1 mt-10 md:mt-30">
@@ -519,5 +564,40 @@ useEvents([
       @apply w-unset mr-2;
     }
   }
+}
+</style>
+
+<style scoped>
+.audio-recovery {
+  margin: 10px auto 20px;
+  padding: 12px 16px;
+  max-width: 580px;
+  border: 1px solid #b69a61;
+  border-radius: 9px;
+  background: #b69a6111;
+  font-size: 13px;
+  line-height: 1.8;
+  text-align: left;
+}
+.audio-recovery p {
+  margin: 0 0 8px;
+}
+.audio-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.audio-recovery button {
+  border: 0;
+  background: none;
+  color: var(--color-link);
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.audio-loading {
+  font-size: 13px;
+  color: var(--color-sub-text);
+  margin: 10px auto;
 }
 </style>

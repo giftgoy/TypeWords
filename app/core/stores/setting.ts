@@ -119,7 +119,7 @@ export const getDefaultSettingState = (): SettingState => ({
     wordTranslateFontSize: 20,
   },
   showToolbar: true,
-  showPanel: true,
+  showPanel: false,
   sideExpand: true,
   theme: 'auto',
   shortcutKeyMap: cloneDeep(DefaultShortcutKeyMap),

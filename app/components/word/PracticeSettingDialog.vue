@@ -1,234 +1,243 @@
 <script setup lang="ts">
-import { _getAccomplishDays } from '@/core/utils'
-import { BaseButton, InputNumber, Slider, Tooltip, Toast } from '@/base'
-import { defineAsyncComponent, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { Dialog } from '@/base'
 import { useSettingStore } from '@/core/stores/setting'
-import ChangeLastPracticeIndexDialog from './ChangeLastPracticeIndexDialog.vue'
 import { useRuntimeStore } from '@/core/stores/runtime'
-import { BaseInput } from '@/base'
-
-const Dialog = defineAsyncComponent(() => import('@/base/dialog/Dialog.vue'))
+import { useBaseStore } from '@/core/stores/base'
+import { getReviewWordLimit, toDisplayWordIndex, toStoredWordIndex } from '@/core/utils/learning-guide'
+import ChangeLastPracticeIndexDialog from './ChangeLastPracticeIndexDialog.vue'
+import SimpleWordFilterControl from './SimpleWordFilterControl.vue'
 
 const settings = useSettingStore()
 const runtimeStore = useRuntimeStore()
-
-const model = defineModel()
-
+const store = useBaseStore()
+const model = defineModel<boolean>()
 const props = defineProps<{
-  showLeftOption: boolean
+  showLeftOption?: boolean
+  startOnConfirm?: boolean
   onConfirm?: () => Promise<void | boolean>
 }>()
-
-const emit = defineEmits<{
-  ok: []
-}>()
-
-let show = $ref(false)
-let tempPerDayStudyNumber = $ref(0)
-let tempWordReviewRatio = $ref(0)
-let tempLastLearnIndex = $ref(0)
-
-async function changePerDayStudyNumber() {
-  runtimeStore.editDict.perDayStudyNumber = Number(tempPerDayStudyNumber)
-  runtimeStore.editDict.lastLearnIndex = Number(tempLastLearnIndex)
-  settings.wordReviewRatio = tempWordReviewRatio
-  return props?.onConfirm?.()
-}
-
-watch(
-  () => model.value,
-  n => {
-    if (n) {
-      if (runtimeStore.editDict.id) {
-        tempPerDayStudyNumber = runtimeStore.editDict.perDayStudyNumber
-        tempLastLearnIndex = runtimeStore.editDict.lastLearnIndex
-        if (tempLastLearnIndex >= runtimeStore.editDict.length) tempLastLearnIndex = runtimeStore.editDict.length
-        tempWordReviewRatio = settings.wordReviewRatio
-      } else {
-        Toast.warning($t('please_select_dict'))
-      }
-    }
-  }
+const emit = defineEmits<{ ok: [] }>()
+const show = ref(false)
+const daily = ref(20)
+const ratio = ref(1)
+const startIndex = ref(0)
+const validationError = ref('')
+const dict = computed(() => runtimeStore.editDict)
+const startOrdinal = computed({
+  get: () => toDisplayWordIndex(startIndex.value),
+  set: value => {
+    startIndex.value = toStoredWordIndex(value, dict.value.words.length)
+  },
+})
+const reviewLimit = computed({
+  get: () => getReviewWordLimit(Number(daily.value), ratio.value),
+  set: value => {
+    ratio.value = Math.max(0, Math.min(10, Number(value) / Math.max(1, daily.value)))
+  },
+})
+const remaining = computed(
+  () =>
+    dict.value.words
+      .slice(startIndex.value)
+      .filter(word => !store.getIgnoreWordsSet().has(word.word.trim().toLowerCase())).length
 )
+const days = computed(() => Math.ceil(remaining.value / Math.max(1, Number(daily.value) || 1)))
+const finished = computed(() => startIndex.value >= dict.value.words.length)
+
+watch(model, value => {
+  if (!value) return
+  daily.value = dict.value.perDayStudyNumber || 20
+  startIndex.value = Math.max(0, Math.min(dict.value.words.length, dict.value.lastLearnIndex))
+  ratio.value = settings.wordReviewRatio
+  validationError.value = ''
+})
+async function save() {
+  if (!Number.isFinite(daily.value) || daily.value < 1 || daily.value > 500 || !Number.isFinite(ratio.value)) {
+    validationError.value = '每天的新词数量应为 1–500 个。'
+    return false
+  }
+  dict.value.perDayStudyNumber = Math.floor(daily.value)
+  dict.value.lastLearnIndex = startIndex.value
+  dict.value.complete = startIndex.value >= dict.value.words.length
+  settings.wordReviewRatio = ratio.value
+  return props.onConfirm?.()
+}
 </script>
 
 <template>
   <Dialog
     v-model="model"
-    :title="$t('learning_settings')"
+    title="学习设置"
     padding
-    :footer="true"
-    :onConfirm="changePerDayStudyNumber"
+    footer
+    :confirm-button-text="startOnConfirm ? '保存并开始' : '保存设置'"
+    :on-confirm="save"
     @ok="emit('ok')"
   >
-    <div class="target-modal color-main" id="mode">
-      <div class="text-center mt-4">
-        <span
-          >{{ $t('total') }}<span class="target-number mx-2">{{ runtimeStore.editDict.length }}</span
-          >{{ $t('words_count') }}，</span
+    <div class="study-settings" id="mode">
+      <p class="study-intro">
+        {{ dict.name }} · 共 {{ dict.words.length.toLocaleString() }} 词。先定一个轻松完成的目标。
+      </p>
+      <div class="study-field">
+        <label for="study-daily">每天学习多少新词</label>
+        <div>
+          <input
+            id="study-daily"
+            type="number"
+            min="1"
+            max="500"
+            v-model.number="daily"
+            aria-label="每天的新词数量"
+          /><span> 个新词</span>
+        </div>
+      </div>
+      <div class="study-presets">
+        <button
+          v-for="count in [5, 10, 20, 50]"
+          :key="count"
+          type="button"
+          :aria-pressed="daily === count"
+          @click="daily = count"
         >
-        <span
-          >{{ $t('estimated')
-          }}<span class="target-number mx-2">{{
-            _getAccomplishDays(runtimeStore.editDict.length - tempLastLearnIndex, tempPerDayStudyNumber)
-          }}</span
-          >{{ $t('days_to_complete') }}</span
-        >
+          {{ count }} 词 / 天
+        </button>
       </div>
-
-      <div class="text-center mt-4 mb-8 flex gap-1 items-end justify-center">
-        <span>{{ $t('from_word') }}</span>
-        <div class="w-20">
-          <BaseInput class="target-number" v-model="tempLastLearnIndex" />
-        </div>
-        <span>{{ $t('start_daily') }}</span>
-        <div class="w-16">
-          <BaseInput class="target-number" v-model="tempPerDayStudyNumber" />
-        </div>
-        <span>{{ $t('new_words_count2') }}</span>
-        <span>，最多复习</span>
-        <div class="target-number mx-2">
-          {{ tempPerDayStudyNumber * tempWordReviewRatio || '-' }}
-        </div>
-        <span>{{ $t('words') }}</span>
-      </div>
-
-      <div class="mb-4 space-y-2">
-        <div class="flex items-center gap-space">
-          <Tooltip :title="$t('review_ratio_tooltip')">
-            <div class="flex items-center gap-1 w-20 break-keep">
-              <span>{{ $t('review_ratio') }}</span>
-              <IconFluentQuestionCircle20Regular />
-            </div>
-          </Tooltip>
-          <InputNumber :min="0" :max="10" v-model="tempWordReviewRatio" />
-        </div>
-        <div class="flex" v-if="!tempWordReviewRatio">
-          <div class="w-23 flex-shrink-0"></div>
-          <div class="text-sm text-gray-500">
-            <div>{{ $t('review_ratio_notice_1') }}</div>
-            <div>{{ $t('review_ratio_notice_2') }}</div>
-          </div>
+      <div class="study-field">
+        <label for="study-review">每组最多复习</label>
+        <div>
+          <input
+            id="study-review"
+            type="number"
+            min="0"
+            :max="daily * 10"
+            v-model.number="reviewLimit"
+            aria-label="每组复习数量上限"
+          /><span> 个词</span>
         </div>
       </div>
-
-      <div class="flex mb-4 gap-space">
-        <span class="shrink-0 w-20">{{ $t('daily_learning') }}</span>
-        <Slider show-text class="mt-1" :min="1" :max="500" v-model="tempPerDayStudyNumber" />
-      </div>
-      <div class="flex gap-space">
-        <span class="shrink-0 w-20">{{ $t('learning_progress') }}</span>
-        <div class="flex-1">
-          <Slider
-            :min="0"
-            show-text
-            class="my-1"
-            :max="runtimeStore.editDict.words.length"
-            v-model="tempLastLearnIndex"
-          />
-          <BaseButton @click="show = true">{{ $t('select_from_dict') }}</BaseButton>
+      <p class="study-help">
+        智能复习（FSRS）只安排已学且到期的词，实际可能少于上限。设为 0 可暂不复习；上限随每日新词目标同比调整。
+      </p>
+      <div class="study-field" v-if="!finished">
+        <label for="study-start">从哪个词开始</label>
+        <div>
+          <span>第 </span
+          ><input
+            id="study-start"
+            type="number"
+            min="1"
+            :max="dict.words.length"
+            v-model.number="startOrdinal"
+            aria-label="学习起点（从第1个词算起）"
+          /><span> 个词</span>
         </div>
       </div>
+      <p v-else class="study-help">
+        新词已经学完，接下来复习已学词。<button type="button" class="text-button" @click="startIndex = 0">
+          重新从第 1 个词开始
+        </button>
+      </p>
+      <button type="button" class="text-button" @click="show = true">在词典中选择起点</button>
+      <div class="study-estimate" role="status">
+        {{
+          remaining
+            ? '剩余可学新词 ' + remaining + ' 个，按当前目标约 ' + days + ' 天学完新词。'
+            : '当前起点之后没有可学新词。'
+        }}<small>估算已扣除已掌握及被过滤的词；后续复习另行安排。</small>
+      </div>
+      <SimpleWordFilterControl :words="dict.words" />
+      <p v-if="validationError" role="alert">{{ validationError }}</p>
     </div>
   </Dialog>
   <ChangeLastPracticeIndexDialog
     v-model="show"
     @ok="
-      e => {
-        tempLastLearnIndex = e
+      value => {
+        startIndex = value
         show = false
       }
     "
   />
 </template>
 
-<style scoped lang="scss">
-.target-modal {
-  width: 35rem;
-
-  .mode-item {
-    @apply w-50% border border-blue border-solid p-2 rounded-lg cursor-pointer;
-  }
-
-  .active {
-    @apply bg-blue color-white;
-  }
+<style scoped>
+.study-settings {
+  width: min(560px, calc(100vw - 80px));
+  color: var(--color-main-text);
+  font-size: 14px;
 }
-
-
-@media (max-width: 768px) {
-  .target-modal {
-    width: 90vw !important;
-    max-width: 400px;
-    padding: 0 1rem;
-
-    // 模式选择
-    .center .flex.gap-4 {
-      width: 100%;
-      flex-direction: column;
-      height: auto;
-      gap: 0.8rem;
-
-      .mode-item {
-        width: 100%;
-        padding: 1rem;
-
-        .title {
-          font-size: 1rem;
-        }
-
-        .desc {
-          font-size: 0.85rem;
-          margin-top: 0.5rem;
-        }
-      }
-    }
-
-    // 统计显示
-    .text-center {
-      font-size: 0.9rem;
-
-      .text-3xl {
-        font-size: 1.5rem;
-      }
-    }
-
-    // 滑块控件
-    .flex.mb-4,
-    .flex.mb-6 {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.5rem;
-
-      span {
-        width: 100%;
-      }
-
-      .flex-1 {
-        width: 100%;
-      }
-    }
-
-    // 按钮
-    .base-button {
-      width: 100%;
-      min-height: 44px;
-    }
-  }
+.study-intro,
+.study-help {
+  color: var(--color-sub-text);
+  line-height: 1.8;
+  font-size: 13px;
+  margin: 0 0 16px;
 }
-
+.study-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0 12px;
+}
+.study-field label {
+  font-weight: 600;
+}
+.study-field input {
+  width: 76px;
+  padding: 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: var(--color-textarea-bg);
+  color: inherit;
+  font: inherit;
+}
+.study-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.study-presets button {
+  border: 1px solid var(--color-line);
+  background: transparent;
+  color: inherit;
+  border-radius: 6px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+.study-presets button[aria-pressed='true'] {
+  border-color: #9c89e0;
+  background: #9c89e022;
+}
+.text-button {
+  border: 0;
+  background: transparent;
+  color: var(--color-link);
+  padding: 2px 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+.study-estimate {
+  margin-top: 18px;
+  border: 1px solid var(--color-line);
+  padding: 12px;
+  border-radius: 8px;
+  line-height: 1.8;
+  font-size: 13px;
+}
+.study-estimate small {
+  display: block;
+  color: var(--color-sub-text);
+  font-size: 12px;
+}
 @media (max-width: 480px) {
-  .target-modal {
-    width: 95vw !important;
-    padding: 0 0.5rem;
-
-    .text-center {
-      font-size: 0.8rem;
-
-      .text-3xl {
-        font-size: 1.2rem;
-      }
-    }
+  .study-field {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
   }
 }
 </style>

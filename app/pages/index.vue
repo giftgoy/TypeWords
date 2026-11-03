@@ -1,9 +1,23 @@
 <script setup lang="ts">
-import { APP_NAME, GITHUB, Origin } from '@/core/config/env.ts'
+import { APP_NAME, GITHUB, Origin, DICT_LIST } from '@/core/config/env.ts'
+import { isOfficialDeployment } from '@/core/utils/learning-guide'
+import { resourceWrap } from '@/core/utils'
+import { readMarketCatalog } from '@/core/utils/resource-market'
 import { BaseIcon } from '@/base'
 import { usePlayBeep, usePlayCorrect, usePlayKeyboardAudio } from '@/core/hooks/sound.ts'
 
 definePageMeta({ layout: 'empty' })
+const dictionaryCount = ref<number | null>(null)
+const officialDeployment = ref(false)
+const currentSiteAddress = ref('')
+onMounted(async () => {
+  officialDeployment.value = isOfficialDeployment(window.location.hostname)
+  currentSiteAddress.value = window.location.origin + useRuntimeConfig().app.baseURL
+  try {
+    const response = await fetch(resourceWrap(DICT_LIST.WORD.ALL))
+    if (response.ok) dictionaryCount.value = readMarketCatalog(await response.json()).length
+  } catch {}
+})
 
 onMounted(() => {
   startTypingAnimation()
@@ -206,7 +220,7 @@ useSeoMeta({
             <BaseIcon title="Github" noBg>
               <IconSimpleIconsGithub />
             </BaseIcon>
-            <span class="text-xl">9k</span>
+            <span class="text-sm">源码</span>
           </a>
           <!-- Mobile menu button -->
           <button
@@ -254,7 +268,7 @@ useSeoMeta({
                     d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
                   />
                 </svg>
-                9k+ GitHub Stars · {{ $t('hero_badge') }}
+                {{ $t('hero_badge') }} · 自选学习内容
               </a>
             </div>
 
@@ -279,7 +293,7 @@ useSeoMeta({
             <!-- Core value pills -->
             <div class="flex gap-2 justify-center lg:justify-start flex-wrap mb-6">
               <span class="value-pill value-pill--purple">{{ $t('hero_pill_typing') }}</span>
-              <span class="value-pill value-pill--blue">{{ $t('hero_pill_fsrs') }}</span>
+              <span class="value-pill value-pill--blue">智能复习（FSRS）</span>
               <span class="value-pill value-pill--green">{{ $t('hero_pill_free') }}</span>
             </div>
 
@@ -290,8 +304,8 @@ useSeoMeta({
                 {{ $t('hero_perk_modes') }}
               </div>
               <div class="flex items-center gap-1.5 text-[.85rem] text-[var(--hw-text-2)]">
-                <span class="w-1.5 h-1.5 rounded-full bg-[#2563eb] shrink-0 opacity-80"></span>50+
-                {{ $t('hero_perk_dicts') }}
+                <span class="w-1.5 h-1.5 rounded-full bg-[#2563eb] shrink-0 opacity-80"></span
+                >{{ dictionaryCount === null ? '浏览词典市场' : dictionaryCount + ' 本可选词典' }}
               </div>
               <div class="flex items-center gap-1.5 text-[.85rem] text-[var(--hw-text-2)]">
                 <span class="w-1.5 h-1.5 rounded-full bg-[#059669] shrink-0 opacity-80"></span
@@ -299,7 +313,7 @@ useSeoMeta({
               </div>
               <div class="flex items-center gap-1.5 text-[.85rem] text-[var(--hw-text-2)]">
                 <span class="w-1.5 h-1.5 rounded-full bg-[#d97706] shrink-0 opacity-80"></span
-                >{{ $t('hero_perk_platforms') }}
+                >{{ officialDeployment ? $t('hero_perk_platforms') : '浏览器本地版' }}
               </div>
             </div>
 
@@ -308,11 +322,11 @@ useSeoMeta({
               <div
                 class="flex items-center gap-3 bg-[rgba(234,179,8,.08)] border border-[rgba(234,179,8,.35)] text-[#92400e] rounded-xl px-4 py-3 leading-[1.6] text-left"
               >
-                <span class="text-[.84rem]">{{ $t('mobile_not_optimized') }}</span>
+                <span class="text-[.84rem]">本地版可直接在浏览器使用；键盘练习建议使用电脑。</span>
               </div>
             </div>
 
-            <div class="mini-qr-card w-full box-border mb-3 flex sm:hidden">
+            <div v-if="officialDeployment" class="mini-qr-card w-full box-border mb-3 flex sm:hidden">
               <NuxtImg
                 src="/imgs/mini.png"
                 :alt="$t('mini_program')"
@@ -363,7 +377,7 @@ useSeoMeta({
             <!-- 网站地址 -->
             <div class="flex justify-center lg:justify-start mt-4">
               <a
-                :href="Origin"
+                :href="currentSiteAddress || '/'"
                 target="_blank"
                 class="inline-flex items-center gap-1.5 text-[var(--hw-text-3)] no-underline hover:text-[#7c3aed] transition-colors duration-150"
               >
@@ -383,7 +397,7 @@ useSeoMeta({
                     d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
                   />
                 </svg>
-                {{ Origin }}
+                {{ currentSiteAddress }}
               </a>
             </div>
           </div>
@@ -515,7 +529,7 @@ useSeoMeta({
             </div>
 
             <!-- ── 小程序码 — 独立卡片（不再混入 CTA 按钮旁） ── -->
-            <div class="mini-qr-card w-full box-border flex">
+            <div v-if="officialDeployment" class="mini-qr-card w-full box-border flex">
               <NuxtImg
                 src="/imgs/mini.png"
                 :alt="$t('mini_program')"
@@ -526,6 +540,14 @@ useSeoMeta({
                 <div class="text-sm text-[var(--hw-text-3)] leading-[1.5]">{{ $t('mini_program_desc') }}</div>
               </div>
             </div>
+            <NuxtLink
+              v-if="!officialDeployment"
+              to="/dict-list"
+              class="mini-qr-card w-full box-border flex flex-col gap-2 no-underline"
+              ><strong>学习内容已保存在本机</strong
+              ><span class="text-sm">到词典市场选择内容；文章支持 A1–C2 参考分级。</span
+              ><span>浏览词典与分级文章 →</span></NuxtLink
+            >
           </div>
         </div>
       </section>

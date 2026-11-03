@@ -1,0 +1,116 @@
+{
+  "upstream": "https://github.com/RealKai42/qwerty-learner",
+  "commit": "1182426f2bd0a28c95302c33f9e19136b1262a70",
+  "license": "GPL-3.0",
+  "dictionaries": [
+    {
+      "id": "market-nce1-words",
+      "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/NCE_1.json",
+      "sha256": "52abc63e292989273ac81a7c2601e6307744d7c0beb8b3a72cf9f5488bd93749",
+      "output": "market-nce1-words.json",
+      "count": 861,
+      "skippedInvalidIndexes": []
+    },
+    {
+      "id": "market-nce2-words",
+      "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/NCE_2.json",
+      "sha256": "7330e2b6a9ff614094351162b26427687e07758e09a90fda2d030a21fbfb91f7",
+      "output": "market-nce2-words.json",
+      "count": 833,
+      "skippedInvalidIndexes": []
+    },
+    {
+      "id": "market-junior",
+      "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/beijing_junior_high_school.json",
+      "sha256": "159c067e741c890835f68b3cf60a3932e053806d4d4073595c5ee3c68a439904",
+      "output": "market-junior.json",
+      "count": 1836,
+      "skippedInvalidIndexes": [
+        700,
+        841,
+        960
+      ]
+    },
+    {
+      "id": "market-cet6",
+      "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/CET6_T.json",
+      "sha256": "ed5e76b945b7c7bc567a75d44a6eaeda137c767960121057deab52593e245d6e",
+      "output": "market-cet6.json",
+      "count": 2345,
+      "skippedInvalidIndexes": []
+    },
+    {
+      "id": "market-kaoyan",
+      "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/KaoYan_3_T.json",
+      "sha256": "2997157b54912bb56118cf3153fb891c452fbfe813da8d21bb219ea7f2829090",
+      "output": "market-kaoyan.json",
+      "count": 3727,
+      "skippedInvalidIndexes": []
+    },
+    {
+      "id": "market-tem4",
+      "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/Level4luan_2_T.json",
+      "sha256": "3c48b2ece3603b63daca4e887e615fb0a732266a568fe4be8ef2d1f497a4a722",
+      "output": "market-tem4.json",
+      "count": 4025,
+      "skippedInvalidIndexes": []
+    },
+    {
+      "id": "market-ielts",
+      "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/IELTS_3_T.json",
+      "sha256": "63f64c79c96270f2a74f7bfebe952efe1d4c1f09b887bc3e4560a989b8873ad1",
+      "output": "market-ielts.json",
+      "count": 3575,
+      "skippedInvalidIndexes": []
+    },
+    {
+      "id": "market-toefl",
+      "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/TOEFL_3_T.json",
+      "sha256": "a1209981905e8dacd3e52774ecc1157a6f5dd1417240a5ded08797c51a835d4c",
+      "output": "market-toefl.json",
+      "count": 4264,
+      "skippedInvalidIndexes": []
+    },
+    {
+      "id": "market-gre",
+      "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/GRE_3_T.json",
+      "sha256": "728890a7e9e766c2a07c02b9c8ac638274cf04b096e15ed8cd6abc0723366e40",
+      "output": "market-gre.json",
+      "count": 6514,
+      "skippedInvalidIndexes": []
+    },
+    {
+      "id": "market-gmat",
+      "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/GMAT_3_T.json",
+      "sha256": "ed8ce2700e4af00421f7f8a663e4eb754da000bb19ac0d922cb2d02bc1a22f94",
+      "output": "market-gmat.json",
+      "count": 3047,
+      "skippedInvalidIndexes": []
+    },
+    {
+      "id": "market-sat",
+      "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/SAT_3_T.json",
+      "sha256": "801f17a1b63a0377dc331214e5af2900279c93b6baa8a828d6e639ae5db48310",
+      "output": "market-sat.json",
+      "count": 4463,
+      "skippedInvalidIndexes": []
+    },
+    {
+      "id": "market-business",
+      "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/BEC_2_T.json",
+      "sha256": "608f0b6248be2bba02f5ab41459f42001cfe470156a78019a740b5615bae5431",
+      "output": "market-business.json",
+      "count": 2753,
+      "skippedInvalidIndexes": []
+    },
+    {
+      "id": "market-computing",
+      "sourceUrl": "https://github.com/RealKai42/qwerty-learner/blob/1182426f2bd0a28c95302c33f9e19136b1262a70/public/dicts/itVocabulary.json",
+      "sha256": "aa19e88f9c1095407a94e6547373ab4b4f0722eedd7a596384b9cc2943b2e4b6",
+      "output": "market-computing.json",
+      "count": 1665,
+      "skippedInvalidIndexes": []
+    }
+  ],
+  "originalReaders": "CC0-1.0"
+}

@@ -18,20 +18,21 @@ import BaseTable from '@/components/BaseTable.vue'
 import PracticeSettingDialog from '@/components/word/PracticeSettingDialog.vue'
 import WordItem from '@/components/word/WordItem.vue'
 import { flushStatToStore, usePracticeWordPersistence } from '@/core/composables/usePracticePersistence'
-import { DICT_LIST, LIB_JS_URL, TourConfig } from '@/core/config/env.ts'
+import { DICT_LIST, LIB_JS_URL } from '@/core/config/env.ts'
 import { getCurrentStudyWord } from '@/core/hooks/dict.ts'
 import { useBaseStore } from '@/core/stores/base.ts'
 import { useRuntimeStore } from '@/core/stores/runtime.ts'
 import { useSettingStore } from '@/core/stores/setting.ts'
 import { Sort, WordPracticeMode } from '@/core/types/enum.ts'
 import { getDefaultDict, getDefaultWord } from '@/core/types/func.ts'
-import type { Dict, Word } from '@/core/types/types.ts'
+import type { Dict, DictResource, Word } from '@/core/types/types.ts'
 import {
   _getDictDataByUrl,
   _nextTick,
   convertToWord,
   ensureCustomDictCopy,
   isMobile,
+  isDictIdMatch,
   loadJsLib,
   resourceWrap,
   reverse,
@@ -40,7 +41,7 @@ import {
 } from '@/core/utils'
 import { getPracticeWordCacheLocal } from '@/core/utils/cache.ts'
 import saveAs from 'file-saver'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -53,6 +54,7 @@ const isMob = isMobile()
 const { t: $t } = useI18n()
 let loading = $ref(false)
 let allList = $ref([])
+let detailReady = $ref(false)
 
 const getDefaultFormWord = () => {
   return {
@@ -293,39 +295,56 @@ function createCopy() {
 }
 
 onMounted(async () => {
-  if (route.query?.isAdd) {
-    isAdd = true
-    runtimeStore.editDict = getDefaultDict()
-  } else {
-    if (!runtimeStore.editDict.id) {
-      return router.push('/words')
+  loading = true
+  try {
+    if (route.query?.isAdd) {
+      isAdd = true
+      runtimeStore.editDict = getDefaultDict()
     } else {
-      if (!runtimeStore.editDict.words.length && !runtimeStore.editDict.custom && !runtimeStore.editDict.system) {
-        loading = true
-        let dictList = await fetch(resourceWrap(DICT_LIST.WORD.ALL)).then(r => r.json())
-        let dict = await _getDictDataByUrl(runtimeStore.editDict)
-        let r = dictList.find(v => [v.enName, v.id].includes(runtimeStore.editDict.id))
-        if (r) {
-          runtimeStore.editDict.words = dict.words
-          runtimeStore.editDict.id = r.id
-          runtimeStore.editDict.enName = r.enName
-          runtimeStore.editDict.cover = r.cover
-          runtimeStore.editDict.category = r.category
-          runtimeStore.editDict.tags = r.tags
-          runtimeStore.editDict.url = r.url
-          runtimeStore.editDict.description = r.description
-          runtimeStore.editDict.name = r.name
-        } else {
-          runtimeStore.editDict = dict
+      const resourceId = String(route.query.id || '')
+      if (resourceId && !isDictIdMatch(runtimeStore.editDict, resourceId)) {
+        // Restore a market link after refresh, preserving saved progress when available.
+        if (!base.load) {
+          await new Promise<void>(resolve => {
+            const stop = watch(
+              () => base.load,
+              ready => {
+                if (ready) {
+                  stop()
+                  resolve()
+                }
+              }
+            )
+          })
         }
-        runtimeStore.editDict.length = dict.words.length
+        let saved = base.word.bookList.find(item => isDictIdMatch(item, resourceId))
+        if (!saved) {
+          const response = await fetch(resourceWrap(DICT_LIST.WORD.ALL))
+          if (!response.ok) throw new Error('词典目录读取失败')
+          const catalog: DictResource[] = await response.json()
+          saved = catalog.find(item => isDictIdMatch(item, resourceId)) as Dict
+        }
+        runtimeStore.editDict = getDefaultDict(saved)
       }
-      loading = false
+      if (!runtimeStore.editDict.id) return router.replace('/words')
+      if (
+        (!Array.isArray(runtimeStore.editDict.words) || !runtimeStore.editDict.words.length) &&
+        !runtimeStore.editDict.custom &&
+        !runtimeStore.editDict.system
+      ) {
+        runtimeStore.editDict = await _getDictDataByUrl(runtimeStore.editDict)
+      }
+      if (!Array.isArray(runtimeStore.editDict.words)) throw new Error('词典内容格式不正确')
+      runtimeStore.editDict.length = runtimeStore.editDict.words.length
     }
+    allList = runtimeStore.editDict.words
+    detailReady = true
+    tableRef.value?.getData()
+  } catch (error) {
+    Toast.error(error instanceof Error ? error.message : '词典读取失败，请重试')
+  } finally {
+    loading = false
   }
-
-  allList = runtimeStore.editDict.words
-  tableRef.value.getData()
 })
 
 function formClose() {
@@ -351,6 +370,12 @@ const store = useBaseStore()
 const settingStore = useSettingStore()
 const { nav } = useNav()
 
+function openGuideSettings() {
+  if (detailReady) addMyStudyList()
+}
+onMounted(() => window.addEventListener('typewords:guide-open-settings', openGuideSettings))
+onUnmounted(() => window.removeEventListener('typewords:guide-open-settings', openGuideSettings))
+
 //todo 可以和首页合并
 async function startPractice(query = {}) {
   // debugger
@@ -374,6 +399,10 @@ async function startPractice(query = {}) {
     wordPracticeMode: settingStore.wordPracticeMode,
   })
   let currentStudy = getCurrentStudyWord()
+  if (!currentStudy.new.length && !currentStudy.review.length) {
+    Toast.info('当前没有可安排的词汇，请调整学习起点或简单词过滤。')
+    return false
+  }
   nav('practice-words/' + store.sdict.id, query, { taskWords: currentStudy })
 }
 
@@ -450,64 +479,6 @@ async function exportJsonData() {
   exportJsonLoading = false
 }
 
-watch(
-  () => loading,
-  val => {
-    if (!val) return
-    _nextTick(async () => {
-      const Shepherd = await loadJsLib('Shepherd', LIB_JS_URL.SHEPHERD)
-      const tour = new Shepherd.Tour(TourConfig)
-      tour.on('cancel', () => {
-        localStorage.setItem('tour-guide', '1')
-      })
-      tour.addStep({
-        id: 'step3',
-        text: '点击这里开始学习',
-        attachTo: { element: '#study', on: 'bottom' },
-        buttons: [
-          {
-            text: `下一步（3/${TourConfig.total}）`,
-            action() {
-              tour.next()
-              addMyStudyList()
-            },
-          },
-        ],
-      })
-
-      tour.addStep({
-        id: 'step4',
-        text: '这里可以选择学习模式、设置学习数量、修改学习进度',
-        attachTo: { element: '#mode', on: 'bottom' },
-        beforeShowPromise() {
-          return new Promise(resolve => {
-            const timer = setInterval(() => {
-              if (document.querySelector('#mode')) {
-                clearInterval(timer)
-                setTimeout(resolve, 500)
-              }
-            }, 100)
-          })
-        },
-        buttons: [
-          {
-            text: `下一步（4/${TourConfig.total}）`,
-            action: async () => {
-              tour.next()
-              await startPractice({ guide: 1 })
-            },
-          },
-        ],
-      })
-
-      const r = localStorage.getItem('tour-guide')
-      if (settingStore.first && !r && !isMobile()) {
-        tour.start()
-      }
-    }, 500)
-  }
-)
-
 const dict = $computed(() => runtimeStore.editDict)
 
 //获取本地单词列表
@@ -523,6 +494,8 @@ function getLocalList({ pageNo, pageSize, searchKey }) {
 }
 
 async function requestList({ pageNo, pageSize, searchKey }) {
+  // The child table mounts before this page has restored its selected dictionary.
+  if (!detailReady) return { list: [], total: 0 }
   if (!dict.custom && !dict.system) {
     // 非自定义词典，直接请求json
 
@@ -783,6 +756,7 @@ defineRender(() => {
       )}
 
       <PracticeSettingDialog
+        startOnConfirm
         showLeftOption
         modelValue={showPracticeSettingDialog}
         onUpdate:modelValue={val => (showPracticeSettingDialog = val)}

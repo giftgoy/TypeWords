@@ -1,4 +1,3 @@
-import { offset } from '@floating-ui/dom'
 //这里合并导入，打包会报错
 import { ShortcutKey, WordPracticeMode, WordPracticeStage } from '../types/enum.ts'
 
@@ -72,21 +71,6 @@ export const LOCAL_FILE_KEY = 'typing-word-files'
 export const WEBSITE_VERSION_HASH = 'type-words-website-version-hash'
 export const BACKUP_INDEX_KEY = 'type-words-backup-index'
 export const BACKUP_KEY = 'type-words-backup-'
-
-export const TourConfig = {
-  useModalOverlay: true,
-  defaultStepOptions: {
-    canClickTarget: false,
-    classes: 'shadow-md bg-purple-dark',
-    cancelIcon: { enabled: true },
-    modalOverlayOpeningPadding: 10,
-    modalOverlayOpeningRadius: 6,
-    floatingUIOptions: {
-      middleware: [offset({ mainAxis: 30 })],
-    },
-  },
-  total: 4,
-}
 
 export const LIB_JS_URL = {
   SHEPHERD: `${ENV.LIBS_URL}/Shepherd.14.5.1.mjs.js`,

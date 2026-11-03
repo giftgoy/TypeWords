@@ -12,15 +12,18 @@ defineEmits(['click'])
 
 <template>
   <Tooltip :disabled="!keyboard" :title="`${keyboard}`">
-    <div
+    <button
+      type="button"
       class="base-button"
+      :disabled="disabled || loading"
+      :aria-busy="loading || undefined"
       v-bind="$attrs"
       @click="e => !disabled && !loading && $emit('click', e)"
       :class="[active && 'active', size, type, (disabled || loading) && 'disabled']"
     >
       <span :style="{ opacity: loading ? 0 : 1 }"><slot></slot></span>
       <IconEosIconsLoading v-if="loading" class="loading" width="18" :color="type === 'info' ? '#000000' : '#ffffff'" />
-    </div>
+    </button>
   </Tooltip>
 </template>
 
@@ -43,6 +46,8 @@ html.dark {
 
 <style scoped lang="scss">
 .base-button {
+  border: 0;
+  font: inherit;
   position: relative;
   cursor: pointer;
   box-sizing: border-box;
