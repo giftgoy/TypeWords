@@ -1,5 +1,6 @@
 /** Flow 配置的严格校验、存储，以及每个练习实例独享的运行时。 */
 import { shallowRef } from 'vue'
+import { setSharedLocalStorage } from '@/core/utils/storage'
 import type { TaskWords, Word } from '@/core/types/types.ts'
 import { WordPracticeMode } from '@/core/types/enum.ts'
 import { shuffle } from '@/core/utils'
@@ -69,7 +70,7 @@ function getFlowStorage(): PracticeFlowStorageData {
 }
 
 function setFlowStorage(data: PracticeFlowStorageData) {
-  localStorage.setItem(FLOW_STORAGE_KEY, JSON.stringify(data))
+  setSharedLocalStorage(FLOW_STORAGE_KEY, JSON.stringify(data))
 }
 
 function isValidSubStep(value: unknown): value is PracticeLoopSubStep {

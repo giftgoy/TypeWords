@@ -1,3 +1,4 @@
+import { initializeStorage, setSharedLocalStorage } from '@/core/utils/storage'
 import { GUIDE_STORAGE_KEY, createLearningGuideState, readLearningGuideState } from '@/core/utils/learning-guide'
 import type { LearningGuideState } from '@/core/utils/learning-guide'
 import { useRouter } from 'vue-router'
@@ -9,12 +10,13 @@ export function useLearningGuide() {
   function persist() {
     if (import.meta.client) {
       try {
-        localStorage.setItem(GUIDE_STORAGE_KEY, JSON.stringify(state.value))
+        setSharedLocalStorage(GUIDE_STORAGE_KEY, JSON.stringify(state.value))
       } catch {}
     }
   }
-  function load() {
+  async function load() {
     if (loaded.value || !import.meta.client) return
+    await initializeStorage()
     try {
       state.value = readLearningGuideState(localStorage.getItem(GUIDE_STORAGE_KEY))
     } catch {}
@@ -30,7 +32,7 @@ export function useLearningGuide() {
     persist()
   }
   async function start() {
-    load()
+    await load()
     state.value = { ...createLearningGuideState(), status: 'active' }
     persist()
     await router.push('/words')

@@ -1,7 +1,7 @@
 import type { PracticeData, TaskWords } from '../types'
 import { WordPracticeMode, WordPracticeStage, WordPracticeType } from '../types/enum'
 import type { PracticeState } from '../stores'
-import { get, set } from 'idb-keyval'
+import { get, set } from '@/core/utils/storage'
 
 type CacheConfig = { key: string; version: number }
 

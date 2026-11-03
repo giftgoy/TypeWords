@@ -1,3 +1,4 @@
+import { initializeStorage } from '../utils/storage'
 import { APP_VERSION } from '../config/env'
 import { debounce } from '../utils'
 import type { BaseState, SettingState } from '../stores'
@@ -55,6 +56,7 @@ export function useInit() {
     unsub2?.()
     document.removeEventListener('visibilitychange', onvisibilitychange)
 
+    await initializeStorage()
     await ensureHashGuardBeforeInit()
     // await userStore.init()
     let dictData = await store.init()

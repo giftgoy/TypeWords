@@ -310,6 +310,20 @@ let studyDayRecords = $ref<StudyDayRow[]>([])
 
 const allWordStatistics = $computed(() => store.word.bookList.flatMap(book => book.statistics ?? []))
 
+/** 本词典里「在其他词库已练过」的单词数量（未标记已掌握） */
+const crossDictLearnedCount = $computed(() => {
+  const dict = store.sdict
+  if (!dict?.words?.length) return 0
+  const fsrs = store.fsrsData as Record<string, any>
+  return dict.words.filter((w: any) => {
+    const raw = String(w.word || '').trim()
+    const key = raw.toLowerCase()
+    if (!key || store.knownWordsSet.has(key)) return false
+    const card = fsrs[raw] ?? fsrs[key]
+    return !!card && (card.reps ?? 0) > 0
+  }).length
+})
+
 const cacheSpendMs = $computed(() => practiceData.statStoreData?.spend ?? 0)
 
 const todayDateKey = $computed(() => dayjs().format('YYYY-MM-DD'))
@@ -608,6 +622,9 @@ onUnmounted(() => {
               <span>{{ progressTextLeft }}</span>
               <span> {{ store.sdict?.lastLearnIndex }} / {{ store.sdict.length }} 词</span>
             </div>
+            <div v-if="crossDictLearnedCount > 0" class="text-xs color-gray">
+              {{ $t('cross_dict_hint', { n: crossDictLearnedCount }) }}
+            </div>
           </div>
           <div class="flex items-center mt-4 gap-4">
             <BaseButton id="choose-dictionary" type="info" size="small" @click="router.push('/dict-list')">
@@ -790,7 +807,10 @@ onUnmounted(() => {
 
     <div id="learning-records" class="card flex flex-col xl:flex-row gap-4 xl:gap-20 p-4 md:p-6">
       <div class="flex-1 flex flex-col gap-3 min-w-0">
-        <div class="title">统计</div>
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div class="title">统计</div>
+          <NuxtLink to="/records" class="text-sm color-blue">{{ $t('study_record') }} →</NuxtLink>
+        </div>
         <div class="flex gap-3 items-stretch w-full">
           <div class="stat2">
             <div class="num">{{ todayTotalSpend }}</div>

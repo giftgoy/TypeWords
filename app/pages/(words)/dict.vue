@@ -580,7 +580,7 @@ defineRender(() => {
           )}
 
           <div class="flex flex-1 overflow-hidden content-area">
-            <div class={`word-list-section ${isMob && isOperate && activeTab !== 'list' ? 'mobile-hidden' : ''}`}>
+            <div class={`word-list-section ${isMob && isOperate && activeTab !== 'list' ? 'mobile-hidden' : ''} ${!isOperate ? 'word-list-alone' : ''}`}>
               <BaseTable
                 ref={tableRef}
                 class="h-full"
@@ -782,6 +782,13 @@ defineRender(() => {
 
 .word-list-section {
   width: 44%;
+}
+
+/* 不在编辑态时，词表居中铺满可用宽度，避免右侧留出大片空白 */
+.word-list-alone {
+  width: 100%;
+  max-width: 900px;
+  margin-inline: auto;
 }
 
 .edit-section {

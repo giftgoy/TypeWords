@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { checkAndUpgradeSaveSetting, cloneDeep, parseJsonStr } from '../utils'
-import { get, set } from 'idb-keyval'
+import { get, set } from '@/core/utils/storage'
 import { APP_VERSION, DefaultShortcutKeyMap, SAVE_SETTING_KEY } from '../config/env'
 import { IdentifyMethod, type SaveData, WordPracticeMode, WordPracticeType } from '../types'
 import type { FSRSParameters } from 'ts-fsrs'
@@ -57,6 +57,7 @@ export interface SettingState {
   showConflictNotice2: boolean // 其他脚本/插件冲突提示
   showUsageTips: boolean //  显示使用提示
   ignoreSimpleWord: boolean // 忽略简单词
+  crossDictDedup: boolean // 跨词库去重：其他词典里已练过的词不再作为新词出现
   wordPracticeMode: WordPracticeMode // 单词练习模式
   wordPracticeType: WordPracticeType // 单词练习类型
   autoNextWord: boolean // 自动切换下一个单词
@@ -131,6 +132,7 @@ export const getDefaultSettingState = (): SettingState => ({
   showConflictNotice2: true,
   showUsageTips: true,
   ignoreSimpleWord: false,
+  crossDictDedup: true,
   wordPracticeMode: WordPracticeMode.System,
   wordPracticeType: WordPracticeType.FollowWrite,
   autoNextWord: false,

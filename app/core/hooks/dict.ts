@@ -157,13 +157,21 @@ export function getCurrentStudyWord(): TaskWords {
     const isEnd = start >= words.length
     const reviewRatio = settingStore.wordReviewRatio
 
+    // 跨词库去重：已经练过的词（FSRS 卡片 reps > 0）不再作为新词重复出现
+    const dedupeLearned = settingStore.crossDictDedup
+    const isLearnedBefore = (word: string) => {
+      const key = word.trim().toLowerCase()
+      const card = (store.fsrsData as Record<string, any>)[word] ?? (store.fsrsData as Record<string, any>)[key]
+      return !!card && (card.reps ?? 0) > 0
+    }
+
     let end = start
     if (!isEnd) {
       //从start往后取perDay个单词，作为新词
       for (let i = start; i < words.length; i++) {
         let item = words[i]
         if (data.new.length >= perDay) break
-        if (!ignoreSet.has(item.word.trim().toLowerCase())) {
+        if (!ignoreSet.has(item.word.trim().toLowerCase()) && !(dedupeLearned && isLearnedBefore(item.word))) {
           data.new.push(item)
         }
         end++

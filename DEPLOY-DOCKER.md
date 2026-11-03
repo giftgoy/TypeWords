@@ -38,6 +38,55 @@ docker run -d --name typewords --restart unless-stopped -p 5567:80 typewords:loc
 
 ## 2. 这套部署做了什么
 
+### 共享学习数据（同一套部署、多个浏览器/设备共用一份进度）
+
+`docker compose up -d --build` 会起三个容器：`typewords`（nginx 静态站）、`typewords-tts`（自然人声）、`typewords-data`（学习数据服务）。
+
+- 浏览器打开站点后，客户端会把 IndexedDB 里的学习数据同步到服务端；换浏览器/换电脑打开同一个地址，会自动载入同一份进度。
+- 数据存在 **Docker 命名卷 `typewords_typewords-data`** 里的 `learning.sqlite3`，重建容器、`docker compose down` 都不会丢（只有 `docker compose down -v` 会删卷）。
+- 同步是按 key 的增量 + 版本号：别的浏览器改了同一份数据，当前这次写入会返回冲突，**本机改动保留在浏览器里、不会被覆盖**，页面会提示重新载入服务器版本。
+- 首次迁移不会丢老数据：浏览器里已有的进度会先被服务端存成一份快照（`/archives`），可在需要时恢复。
+- 服务端校验 `Origin` 与 `Host` 必须同源，所以 nginx 反代必须保留原始 Host：`proxy_set_header Host $http_host;`（用 `$host` 会丢端口，写入被 403 拒绝）。
+
+重置共享数据（谨慎，多端进度会一起清空）：
+
+```powershell
+docker compose stop data
+docker compose rm -f data
+docker volume rm typewords_typewords-data
+docker compose up -d data
+```
+
+或只通过页面「设置 → 数据管理」导出 ZIP 备份后再清理。
+
+### GitHub 云端备份（可选）
+
+本地 SQLite 是唯一真源，GitHub 只做「异地备份 + 新设备冷启动恢复」。
+
+1. 建一个**私有仓库**，生成 **fine-grained PAT**，只勾选该仓库的 `Contents: Read and write`；
+2. 在 `deploy/.env`（已被 .gitignore 忽略）写入：
+
+```ini
+GITHUB_REPO=你的GitHub用户名/仓库名
+GITHUB_TOKEN=github_pat_xxx
+GITHUB_BRANCH=main
+GITHUB_PATH=typewords/progress.json
+GITHUB_SNAPSHOT_DIR=typewords/daily
+# 国内网络需要走代理时：GITHUB_API 保持默认，给 data 服务加 HTTPS_PROXY
+```
+
+3. 重建数据服务：`docker compose up -d --force-recreate data`
+4. 打开「设置 → 数据同步」，看到「云端备份（GitHub）· 已配置」，点「立即备份」验证一次。
+
+行为说明：
+
+- 每次学习数据保存后 **5 秒防抖**自动推送；失败只记录状态，不影响本地保存。
+- 只同步 `typing-word-dict` 和 `typing-word-setting`（进度、FSRS、错词、设置），**不含音频**；自建词库正文超过 5 MB 时会被裁掉。
+- 每天额外写一份快照到 `GITHUB_SNAPSHOT_DIR/YYYY-MM-DD.json`，同一天只写一次。
+- 「从云端恢复」覆盖前会先在本机 `/archives` 存一份快照，可回滚。
+- Token 只存在服务端容器环境变量里，浏览器端拿不到。
+- 国内直连 `api.github.com` 不稳，可在 compose 的 `data.environment` 加 `HTTPS_PROXY: http://host.docker.internal:7897`。
+
 ### 在线自然人声（TTS）
 
 执行 `docker compose up -d --build` 会同时启动 `typewords` 和 `typewords-tts`。

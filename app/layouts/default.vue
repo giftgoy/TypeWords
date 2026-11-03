@@ -115,6 +115,21 @@ onMounted(() => {
           </svg>
           <span>资源市场</span>
         </NuxtLink>
+        <NuxtLink to="/records" class="row" :title="$t('study_record')" :aria-label="$t('study_record')">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          >
+            <path d="M4 20V11M10 20V4M16 20v-6M22 20H2" />
+          </svg>
+          <span>{{ $t('study_record') }}</span>
+        </NuxtLink>
         <NuxtLink to="/feedback" class="row" :title="$t('feedback')" :aria-label="$t('feedback')">
           <IconFluentCommentEdit20Regular />
           <span>{{ $t('feedback') }}</span>

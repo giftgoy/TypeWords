@@ -11,10 +11,27 @@ services:
     restart: unless-stopped
     depends_on:
       - tts
-    # 应用数据保存在浏览器本地（IndexedDB/localStorage），容器本身无持久化需求
+      - data
 
   tts:
     build: ./deploy/tts
     image: typewords-tts:local
     container_name: typewords-tts
     restart: unless-stopped
+
+  # 共享学习数据：所有浏览器/设备通过 /api/data 读写同一份 SQLite（存在 typewords-data 卷里，重建容器不丢）
+  data:
+    build: ./deploy/data
+    image: typewords-data:local
+    container_name: typewords-data
+    restart: unless-stopped
+    env_file:
+      - path: ./deploy/.env
+        required: false
+    environment:
+      DATA_FILE: /data/learning.sqlite3
+    volumes:
+      - typewords-data:/data
+
+volumes:
+  typewords-data:

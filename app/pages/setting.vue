@@ -15,7 +15,7 @@ import {
   LOCAL_FILE_KEY,
   Origin,
 } from '@/core/config/env'
-import { get, set } from 'idb-keyval'
+import { get, set } from '@/core/utils/storage'
 import { useRuntimeStore } from '@/core/stores/runtime'
 import { useExport } from '@/core/hooks/export'
 import Log from '@/components/setting/Log.vue'
@@ -667,6 +667,7 @@ function disable360() {
           </div>
 
           <div v-if="tabIndex === 6">
+            <GithubBackupSetting />
             <p class="text-red font-bold">过时功能：由于经常同步失败，不再推荐继续使用，请等待官方同步功能</p>
             <!--          Supabase 设置  -->
             <SettingItem :title="$t('supabase_config')" :desc="$t('supabase_config_desc')">

@@ -17,6 +17,11 @@ const store = useBaseStore()
     </SettingItem>
 
     <div class="line"></div>
+    <SettingItem :title="$t('cross_dict_dedup')" :desc="$t('cross_dict_dedup_desc')">
+      <Switch v-model="settingStore.crossDictDedup" />
+    </SettingItem>
+
+    <div class="line"></div>
     <SimpleWordFilterControl :words="store.sdict.words" />
     <div class="line"></div>
     <SettingItem title="入门引导" desc="从选择词典到开始练习，随时可以重新查看。关闭引导不会删除学习数据。"

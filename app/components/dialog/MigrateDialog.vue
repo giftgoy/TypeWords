@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Toast } from '@/base'
 import { Origin } from '@/core/config/env.ts'
-import { set } from 'idb-keyval'
+import { set } from '@/core/utils/storage'
 import { defineAsyncComponent } from 'vue'
 
 const Dialog = defineAsyncComponent(() => import('@/base/dialog/Dialog.vue'))
