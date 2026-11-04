@@ -210,6 +210,7 @@ const { data: recommendBookList, isFetching } = useFetch(resourceWrap(DICT_LIST.
 
 <template>
   <BasePage class="study-page">
+    <NuxtLink to="/reading-studio" class="color-link">用目标词生成背诵短文 →</NuxtLink>
     <div class="card flex flex-col xl:flex-row justify-between gap-space p-4 md:p-6">
       <div class="">
         <Book

@@ -55,6 +55,12 @@ export interface Sentence {
 }
 
 export interface Article {
+  readingStudy?: {
+    targets: string[]
+    vocabulary: { paragraph: number; form: string; lemma: string; meaning: string; phonetic?: string; occurrence?: number }[]
+    phrases: { paragraph: number; text: string; meaning: string }[]
+    theme: string
+  }
   translationVersion?: number
   id?: number | string
   title: string

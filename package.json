@@ -9,7 +9,8 @@
     "preview": "nuxt preview",
     "i18n:write": "gulp i18nWrite",
     "test": "node --test tests/*.test.mjs",
-    "resources:prepare": "node scripts/prepare-market.mjs"
+    "resources:prepare": "node scripts/prepare-market.mjs",
+    "gloss:build": "node scripts/prepare-gloss-index.mjs && node scripts/prepare-reading-gloss.mjs"
   },
   "dependencies": {
     "@floating-ui/dom": "^1.7.4",

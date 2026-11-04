@@ -21,6 +21,7 @@ import {
 } from '@/core/utils'
 import { getDefaultArticle, getDefaultDict } from '@/core/types/func.ts'
 import ArticleAudio from '@/components/article/ArticleAudio.vue'
+import ImmersiveArticle from '@/components/article/ImmersiveArticle.vue'
 import { MessageBox } from '@/core/utils/MessageBox.tsx'
 import { useSettingStore } from '@/core/stores/setting.ts'
 import { useFetch } from '@vueuse/core'
@@ -229,8 +230,37 @@ const list = $computed(() => {
 
 let showTranslate = $ref(true)
 let startPlay = $ref(false)
-let displayMode = $ref<'card' | 'inline' | 'line'>('card')
+// 深链 ?mode=immersion 直接进入沉浸式阅读（便于分享/侧栏打开）
+let displayMode = $ref<'card' | 'inline' | 'line' | 'immersion'>(
+  route.query.mode === 'immersion' ? 'immersion' : 'card'
+)
 let articleWrapperRef = $ref<HTMLElement>()
+
+// 深链 ?article=<id> 自动选中该文章；不带则停留在书籍介绍
+watch(
+  [() => loading.value, () => runtimeStore.editDict.id, () => runtimeStore.editDict.articles.length],
+  () => {
+    if (selectArticle.id !== -1 || loading.value) return
+    const raw = route.query.article
+    if (!raw) return
+    const target = runtimeStore.editDict.articles.find(v => String(v.id) === String(raw))
+    if (target) handleCheckedChange({ item: target })
+  },
+  { immediate: true }
+)
+
+// 显示模式写回 URL，退出沉浸式后链接随之复原
+watch(
+  () => displayMode,
+  value => {
+    const wantImmersion = value === 'immersion'
+    if (wantImmersion === (route.query.mode === 'immersion')) return
+    const query = { ...route.query }
+    if (wantImmersion) query.mode = 'immersion'
+    else delete query.mode
+    router.replace({ query })
+  }
+)
 
 const handleVolumeUpdate = (volume: number) => {
   settingStore.articleSoundVolume = volume
@@ -308,9 +338,9 @@ function positionTranslations() {
   })
 }
 
-// 监听显示模式和文章变化，重新定位翻译
+// 监听显示模式和文章变化，重新定位翻译（inline / line 模式共用文末译文块，需要绝对定位；沉浸式模式自渲染译文）
 watch([() => displayMode, () => selectArticle.id, () => showTranslate], () => {
-  if (displayMode !== 'card') {
+  if (displayMode !== 'card' && displayMode !== 'immersion') {
     positionTranslations()
   }
 })
@@ -329,12 +359,25 @@ const { playSentenceAudio } = usePlaySentenceAudio()
 function play(sentence: Sentence, onEnd: () => void) {
   playSentenceAudio(sentence, audioRef, onEnd)
 }
+
+// 沉浸式阅读：第 4 种显示模式，退出时回到卡片对照模式
+function toggleImmersion() {
+  displayMode = displayMode === 'immersion' ? 'card' : 'immersion'
+}
+
+function selectReadingArticle(event: Event) {
+  const id = (event.target as HTMLSelectElement).value
+  const item = runtimeStore.editDict.articles.find(a => String(a.id) === id)
+  if (!item) return
+  handleCheckedChange({ item })
+  router.replace({ query: { ...route.query, article: id } })
+}
 </script>
 
 <template>
-  <div class="center h-screen">
+  <div class="book-reading-page center h-screen" :class="{ 'is-immersive': displayMode === 'immersion' && showBookDetail }">
     <div
-      class="bg-second w-full 3xl:w-7/10 2xl:w-8/10 xl:w-full 2xl:card 2xl:h-[97vh] h-full p-3 box-border overflow-hidden mb-0"
+      class="book-reading-shell bg-second w-full 3xl:w-7/10 2xl:w-8/10 xl:w-full 2xl:card 2xl:h-[97vh] h-full p-3 box-border overflow-hidden mb-0"
     >
       <div class="flex box-border flex-col h-full" v-if="showBookDetail" v-loading="loading">
         <p v-if="runtimeStore.editDict.url?.startsWith('feed/')" class="text-sm my-3" role="status">
@@ -364,8 +407,8 @@ function play(sentence: Sentence, onEnd: () => void) {
             <BaseButton :loading="studyLoading || loading" @click="startPractice">{{ $t('learn') }}</BaseButton>
           </div>
         </div>
-        <div class="flex flex-1 overflow-hidden mt-3">
-          <div class="3xl:w-80 2xl:w-60 xl:w-55 lg:w-50 flex">
+        <div class="book-reading-columns flex flex-1 overflow-hidden mt-3">
+          <div class="3xl:w-80 2xl:w-60 xl:w-55 lg:w-50 flex" :class="{ 'imm-list-collapse': displayMode === 'immersion' }">
             <ArticleList
               :show-desc="true"
               v-if="list.length"
@@ -376,7 +419,7 @@ function play(sentence: Sentence, onEnd: () => void) {
             </ArticleList>
             <Empty v-else />
           </div>
-          <div class="flex-1 shrink-0 pl-4 flex flex-col overflow-hidden">
+          <div class="article-reader flex-1 min-w-0 pl-4 flex flex-col overflow-hidden" :class="{ 'is-immersive': displayMode === 'immersion' }">
             <template v-if="selectArticle.id">
               <template v-if="selectArticle.id === -1">
                 <div class="flex gap-4 mt-2">
@@ -393,7 +436,7 @@ function play(sentence: Sentence, onEnd: () => void) {
               <template v-else>
                 <div ref="articleRef" class="flex-1 overflow-auto pb-30">
                   <div>
-                    <div class="flex justify-between items-center relative">
+                    <div class="article-reading-title flex justify-between items-center relative">
                       <span>
                         <span class="inline-flex items-center gap-1">
                           <ClickableEnglishText
@@ -429,11 +472,34 @@ function play(sentence: Sentence, onEnd: () => void) {
                     </div>
                   </div>
 
+                  <div class="reading-mode-toolbar flex items-center justify-end gap-2 mt-3">
+                    <label v-if="displayMode === 'immersion'" class="imm-article-picker">
+                      切换文章
+                      <select :value="String(selectArticle.id)" @change="selectReadingArticle" aria-label="切换文章">
+                        <option v-for="item in runtimeStore.editDict.articles" :key="item.id" :value="String(item.id)">{{ item.title }}</option>
+                      </select>
+                    </label>
+                    <NuxtLink to="/reading-studio" class="text-sm">用词写短文</NuxtLink>
+                    <BaseButton
+                      size="small"
+                      :type="displayMode === 'immersion' ? 'primary' : 'info'"
+                      @click="toggleImmersion"
+                    >
+                      {{ displayMode === 'immersion' ? '退出沉浸式' : '沉浸式阅读' }}
+                    </BaseButton>
+                  </div>
+
                   <div
                     class="article-content mt-6"
-                    :class="[showTranslate && displayMode !== 'card' && 'tall']"
+                    :class="[showTranslate && displayMode !== 'card' && displayMode !== 'immersion' && 'tall']"
                     ref="articleWrapperRef"
                   >
+                    <ImmersiveArticle
+                      v-if="displayMode === 'immersion'"
+                      :article="selectArticle"
+                      :show-translate="showTranslate"
+                    />
+                    <template v-else>
                     <article>
                       <div class="mb-10" v-for="(sections, i) in selectArticle.sections">
                         <TypingSentenceItem
@@ -511,6 +577,7 @@ function play(sentence: Sentence, onEnd: () => void) {
                         </template>
                       </template>
                     </template>
+                    </template>
                   </div>
                   <template v-if="currentPractice.length">
                     <div class="line my-10"></div>
@@ -530,7 +597,7 @@ function play(sentence: Sentence, onEnd: () => void) {
                   </template>
                 </div>
                 <div
-                  v-if="selectArticle.audioSrc || selectArticle.audioFileId"
+                  v-if="displayMode !== 'immersion' && (selectArticle.audioSrc || selectArticle.audioFileId)"
                   class="border-t-1 border-t-gray-300 border-solid border-0 center gap-2 pt-4"
                 >
                   <ArticleAudio
@@ -560,6 +627,9 @@ function play(sentence: Sentence, onEnd: () => void) {
                     </BaseIcon>
                     <BaseIcon :title="$t('comparison')" :active="displayMode === 'card'" @click="displayMode = 'card'">
                       <IconFluentAlignSpaceFitVertical20Regular />
+                    </BaseIcon>
+                    <BaseIcon :title="displayMode === 'immersion' ? '退出沉浸式' : '沉浸式阅读'" :active="displayMode === 'immersion'" @click="toggleImmersion">
+                      <IconFluentReadingList20Regular />
                     </BaseIcon>
                   </div>
                 </div>
@@ -602,6 +672,91 @@ function play(sentence: Sentence, onEnd: () => void) {
 
 .dict-actions {
   flex-wrap: wrap;
+}
+
+.book-reading-page.is-immersive {
+  --imm-directory-width: clamp(11rem, calc(25vw - 11.5rem), 14rem);
+}
+
+.is-immersive .book-reading-shell {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 1rem;
+}
+
+.is-immersive .book-reading-columns {
+  position: relative;
+  gap: 2rem;
+}
+
+.is-immersive .imm-list-collapse {
+  width: var(--imm-directory-width);
+  flex-shrink: 0;
+}
+
+.is-immersive .article-reader {
+  padding-left: 0;
+}
+
+.is-immersive .article-reader > div {
+  width: 100%;
+  max-width: 56rem;
+  margin-inline: auto;
+}
+
+.is-immersive .article-reading-title > span {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.is-immersive .article-reading-title > span > span {
+  margin-left: 0;
+  min-width: 0;
+}
+
+/* 宽屏正文以整个屏幕为中心，目录独立靠左，避免把阅读轴推向右侧。 */
+@media (min-width: 1280px) {
+  .is-immersive .imm-list-collapse {
+    position: absolute;
+    inset: 0 auto 0 0;
+  }
+
+  .is-immersive .article-reader {
+    flex: none;
+    width: min(56rem, calc(100vw - 2 * var(--aside-width) - 2 * var(--imm-directory-width) - 4rem));
+    margin-inline: auto;
+    transform: translateX(calc(var(--aside-width) / -2));
+  }
+}
+
+/* 沉浸式阅读在窄屏下优先保证正文宽度：收起左侧文章列表 */
+.reading-mode-toolbar {
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0.4rem 0;
+  background: var(--color-second);
+}
+
+.imm-article-picker { display: flex; align-items: center; gap: 8px; margin-right: auto; font-size: 13px; min-width: 0; }
+.imm-article-picker select { max-width: 220px; min-width: 0; padding: 6px; border: 1px solid var(--color-line); border-radius: 6px; color: var(--color-main-text); background: var(--color-second); }
+
+@media (max-width: 768px) {
+  .is-immersive .book-reading-shell {
+    padding: 0.75rem;
+  }
+
+  .imm-list-collapse {
+    display: none;
+  }
+
+  .article-reader.is-immersive {
+    padding-left: 0;
+  }
 }
 
 // 打字式显示模式样式（复用 TypingArticle 的样式）

@@ -37,7 +37,7 @@ export function closeWordLookup() {
   wordLookupState.visible = false
 }
 
-export async function lookupWord(e: MouseEvent, rawWord: string, playAudio?: (word: string) => void) {
+export async function lookupWord(e: MouseEvent, rawWord: string, playAudio?: (word: string) => void, localWord?: Word) {
   e.stopPropagation()
   const target = e.currentTarget as HTMLElement | null
   if (!target) return
@@ -53,7 +53,11 @@ export async function lookupWord(e: MouseEvent, rawWord: string, playAudio?: (wo
     playAudio?.(stripped)
   }
 
-  await fetchWordData(rawWord)
+  if (localWord) {
+    wordLookupState.queryWord = rawWord
+    wordLookupState.data = localWord
+    wordLookupState.loading = false
+  } else await fetchWordData(rawWord)
   if (wordLookupState.visible && target.isConnected) {
     updatePosition(target)
   }

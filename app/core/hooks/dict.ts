@@ -262,7 +262,7 @@ export function useGetDict() {
     if (route.query?.isAdd) {
       runtimeStore.editDict = getDefaultDict()
     } else {
-      if (!runtimeStore.editDict?.id) {
+      if (!isDictIdMatch(runtimeStore.editDict, route.params?.id)) {
         let dictId = route.params?.id
         if (!dictId) {
           return router.push('/articles')
@@ -289,6 +289,8 @@ export function useGetDict() {
         fetching = true
         let r = await _getDictDataByUrl(dict, DictType.article)
         runtimeStore.editDict = r
+      } else {
+        runtimeStore.editDict = cloneDeep(dict)
       }
       if (store.article.bookList.find(book => book.id === runtimeStore.editDict.id)) {
       }

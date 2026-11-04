@@ -169,6 +169,14 @@ export default defineNuxtConfig({
       ignore: appBaseURL === '/' ? [] : [withBaseURL('/manifest.json', appBaseURL)],
     },
     devProxy: {
+      '/api/reading/': {
+        target: 'http://127.0.0.1:5568/',
+        changeOrigin: false,
+      },
+      '/api/tts/': {
+        target: 'http://127.0.0.1:5567/api/tts/',
+        changeOrigin: true,
+      },
       '/baidu': {
         target: 'https://api.fanyi.baidu.com/api/trans/vip/translate',
         changeOrigin: true,
