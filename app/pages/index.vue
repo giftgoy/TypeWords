@@ -1,62 +1,20 @@
 <script setup lang="ts">
-import { APP_NAME, GITHUB, Origin, DICT_LIST } from '@/core/config/env.ts'
-import { isOfficialDeployment } from '@/core/utils/learning-guide'
+import { APP_NAME, GITHUB, DICT_LIST } from '@/core/config/env.ts'
 import { resourceWrap } from '@/core/utils'
 import { readMarketCatalog } from '@/core/utils/resource-market'
-import { BaseIcon } from '@/base'
 import { usePlayBeep, usePlayCorrect, usePlayKeyboardAudio } from '@/core/hooks/sound.ts'
 
 definePageMeta({ layout: 'empty' })
+const { t } = useI18n()
 const dictionaryCount = ref<number | null>(null)
-const officialDeployment = ref(false)
-const currentSiteAddress = ref('')
+let mobileMenuOpen = $ref(false)
 onMounted(async () => {
-  officialDeployment.value = isOfficialDeployment(window.location.hostname)
-  currentSiteAddress.value = window.location.origin + useRuntimeConfig().app.baseURL
   try {
     const response = await fetch(resourceWrap(DICT_LIST.WORD.ALL))
     if (response.ok) dictionaryCount.value = readMarketCatalog(await response.json()).length
   } catch {}
 })
 
-onMounted(() => {
-  startTypingAnimation()
-})
-
-const { t } = useI18n()
-
-const typingWords = ['abandon', 'persevere', 'eloquent', 'diligent', 'profound', 'innovation']
-let typingCursor = $ref(true)
-
-function startTypingAnimation() {
-  let wordIdx = 0
-  let charIdx = 0
-  let deleting = false
-  function tick() {
-    const word = typingWords[wordIdx]
-    if (!deleting) {
-      charIdx++
-      if (charIdx === word.length) {
-        deleting = true
-        setTimeout(tick, 1600)
-        return
-      }
-    } else {
-      charIdx--
-      if (charIdx === 0) {
-        deleting = false
-        wordIdx = (wordIdx + 1) % typingWords.length
-      }
-    }
-    setTimeout(tick, deleting ? 60 : 100)
-  }
-  setInterval(() => {
-    typingCursor = !typingCursor
-  }, 530)
-  tick()
-}
-
-// ── 首屏打字 Demo（PC 端，轻量自包含，不依赖 store）──
 const demoWords = $computed(() => [
   {
     word: 'persevere',
@@ -166,537 +124,148 @@ const playDemoKeyboard = usePlayKeyboardAudio()
 const playDemoBeep = usePlayBeep()
 const playDemoCorrect = usePlayCorrect()
 
-let mobileMenuOpen = $ref(false)
 
-useSeoMeta({
-  title: () => 'TypeWords',
-  ogUrl: 'https://typewords.cc/',
-})
+useSeoMeta({ title: () => 'TypeWords' })
 </script>
 
 <template>
-  <div class="hw min-h-screen overflow-x-hidden font-sans" id="wrapper">
-    <!-- NAV -->
-    <header class="sticky top-0 z-100 backdrop-blur-md border-b border-[var(--hw-border)] bg-[var(--hw-bg-nav)]">
-      <div class="max-w-[1200px] mx-auto px-4 sm:px-8 h-15 flex items-center gap-8">
-        <!-- Logo -->
-        <div
-          class="text-[1.1rem] font-semibold shrink-0 bg-gradient-to-r from-[#bd34fe] to-[#41d1ff] bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent]"
-        >
-          {{ APP_NAME }}
-        </div>
-        <!-- Desktop nav links -->
-        <nav class="hidden md:flex gap-7">
-          <NuxtLink
-            to="/words"
-            class="font-medium text-[var(--hw-text-2)] no-underline hover:text-[var(--hw-text)] transition-colors duration-150"
-            >{{ $t('nav_words') }}</NuxtLink
-          >
-          <NuxtLink
-            to="/articles"
-            class="font-medium text-[var(--hw-text-2)] no-underline hover:text-[var(--hw-text)] transition-colors duration-150"
-            >{{ $t('nav_articles') }}</NuxtLink
-          >
-          <NuxtLink
-            to="/doc"
-            class="font-medium text-[var(--hw-text-2)] no-underline hover:text-[var(--hw-text)] transition-colors duration-150"
-            >{{ $t('nav_resources') }}</NuxtLink
-          >
-          <NuxtLink
-            to="/help"
-            class="font-medium text-[var(--hw-text-2)] no-underline hover:text-[var(--hw-text)] transition-colors duration-150"
-            >{{ $t('nav_help') }}</NuxtLink
-          >
-        </nav>
-        <!-- Actions -->
-        <div class="ml-auto flex items-center gap-2 text-[var(--hw-text-2)]">
-          <!-- GitHub -->
-          <a
-            class="flex center gap-1 text-[var(--hw-text-2)] no-underline"
-            :href="GITHUB"
-            target="_blank"
-            aria-label="Github project address"
-          >
-            <BaseIcon title="Github" noBg>
-              <IconSimpleIconsGithub />
-            </BaseIcon>
-            <span class="text-sm">源码</span>
-          </a>
-          <!-- Mobile menu button -->
-          <button
-            class="flex md:hidden items-center justify-center w-8 h-8 rounded-lg bg-transparent text-[var(--hw-text-2)] cursor-pointer"
-            @click="mobileMenuOpen = !mobileMenuOpen"
-          >
-            <span class="text-[1.2rem] leading-none">☰</span>
-          </button>
-        </div>
-      </div>
+  <div class="home" id="wrapper">
+    <header class="home-header">
+      <NuxtLink to="/" class="home-brand">{{ APP_NAME }}</NuxtLink>
+      <button class="menu-button" type="button" :aria-expanded="mobileMenuOpen" aria-controls="home-navigation" aria-label="展开或收起导航" @click="mobileMenuOpen = !mobileMenuOpen">
+        <IconFluentNavigation20Regular />
+      </button>
+      <nav id="home-navigation" :class="{ open: mobileMenuOpen }" aria-label="主导航">
+        <NuxtLink to="/words">{{ $t('nav_words') }}</NuxtLink>
+        <NuxtLink to="/articles">{{ $t('nav_articles') }}</NuxtLink>
+        <NuxtLink to="/doc">{{ $t('nav_resources') }}</NuxtLink>
+        <NuxtLink to="/help">{{ $t('nav_help') }}</NuxtLink>
+      </nav>
+      <a :href="GITHUB" target="_blank" rel="noopener noreferrer" class="source-link">GitHub</a>
     </header>
 
-    <main>
-      <!-- ══════════════════ HERO ══════════════════ -->
-      <section class="relative overflow-hidden px-4 sm:px-8 py-14 sm:py-18 min-h-[92vh] flex items-center">
-        <!-- Gradient mesh background -->
-        <div class="absolute inset-0 pointer-events-none overflow-hidden">
-          <div
-            class="absolute top-[-10rem] left-1/2 -translate-x-[65%] w-[52rem] h-[52rem] rounded-full"
-            style="background: radial-gradient(circle, rgba(124, 58, 237, 0.13) 0%, transparent 65%)"
-          ></div>
-          <div
-            class="absolute top-[-4rem] right-0 translate-x-[25%] w-[40rem] h-[40rem] rounded-full"
-            style="background: radial-gradient(circle, rgba(37, 99, 235, 0.1) 0%, transparent 65%)"
-          ></div>
-          <div
-            class="absolute bottom-[-6rem] left-0 -translate-x-[20%] w-[32rem] h-[32rem] rounded-full"
-            style="background: radial-gradient(circle, rgba(16, 185, 129, 0.07) 0%, transparent 65%)"
-          ></div>
+    <main class="home-main">
+      <section class="home-intro" aria-labelledby="home-title">
+        <h1 id="home-title">{{ APP_NAME }}</h1>
+        <h2>{{ $t('hero_tagline') }}</h2>
+        <p class="home-description">{{ $t('hero_desc') }}</p>
+        <div class="home-actions">
+          <NuxtLink to="/words" class="primary-action">{{ $t('hero_cta_start') }} <span aria-hidden="true">→</span></NuxtLink>
+          <NuxtLink to="/dict-list" class="secondary-action">{{ $t('home_browse_content') }}</NuxtLink>
         </div>
+        <p class="home-note">{{ $t('home_keyboard_note') }}</p>
+      </section>
 
-        <!-- PC 两栏 / 手机单栏 -->
-        <div class="relative z-1 max-w-[1200px] mx-auto w-full flex flex-col lg:flex-row items-center gap-10 lg:gap-14">
-          <!-- ── Left: 文字区 ── -->
-          <div class="flex-1 text-center lg:text-left">
-            <!-- Social proof badge -->
-            <div class="flex justify-center lg:justify-start mb-5">
-              <a
-                :href="GITHUB"
-                target="_blank"
-                class="inline-flex items-center gap-2 text-[1rem] font-semibold text-[#7c3aed] no-underline px-3.5 py-1.5 rounded-full border border-[rgba(124,58,237,.3)] bg-[rgba(124,58,237,.06)] hover:bg-[rgba(124,58,237,.12)] transition-all duration-150 cursor-pointer"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" class="shrink-0">
-                  <path
-                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                  />
-                </svg>
-                {{ $t('hero_badge') }} · 自选学习内容
-              </a>
-            </div>
-
-            <!-- Title -->
-            <h1 class="hero-title flex flex-col mt-0 mb-4 leading-[1.08]">
-              <span
-                class="text-[clamp(3rem,8vw,5.5rem)] bg-gradient-to-r from-[#bd34fe] via-[#7c3aed] to-[#41d1ff] bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent]"
-              >
-                {{ APP_NAME }}
-              </span>
-              <span class="mt-3 text-[clamp(1.35rem,3vw,2rem)] leading-[1.35] font-semibold text-[var(--hw-text)]">
-                {{ $t('hero_tagline') }}
-              </span>
-            </h1>
-
-            <p
-              class="text-[clamp(.9rem,2vw,1.05rem)] text-[var(--hw-text-2)] mb-6 leading-[1.75] max-w-[520px] mx-auto lg:mx-0"
-            >
-              {{ $t('hero_desc') }}
-            </p>
-
-            <!-- Core value pills -->
-            <div class="flex gap-2 justify-center lg:justify-start flex-wrap mb-6">
-              <span class="value-pill value-pill--purple">{{ $t('hero_pill_typing') }}</span>
-              <span class="value-pill value-pill--blue">智能复习（FSRS）</span>
-              <span class="value-pill value-pill--green">{{ $t('hero_pill_free') }}</span>
-            </div>
-
-            <!-- Perks inline -->
-            <div class="flex gap-4 sm:gap-6 justify-center lg:justify-start flex-wrap mb-7">
-              <div class="flex items-center gap-1.5 text-[.85rem] text-[var(--hw-text-2)]">
-                <span class="w-1.5 h-1.5 rounded-full bg-[#7c3aed] shrink-0 opacity-80"></span>7
-                {{ $t('hero_perk_modes') }}
-              </div>
-              <div class="flex items-center gap-1.5 text-[.85rem] text-[var(--hw-text-2)]">
-                <span class="w-1.5 h-1.5 rounded-full bg-[#2563eb] shrink-0 opacity-80"></span
-                >{{ dictionaryCount === null ? '浏览词典市场' : dictionaryCount + ' 本可选词典' }}
-              </div>
-              <div class="flex items-center gap-1.5 text-[.85rem] text-[var(--hw-text-2)]">
-                <span class="w-1.5 h-1.5 rounded-full bg-[#059669] shrink-0 opacity-80"></span
-                >{{ $t('hero_perk_offline') }}
-              </div>
-              <div class="flex items-center gap-1.5 text-[.85rem] text-[var(--hw-text-2)]">
-                <span class="w-1.5 h-1.5 rounded-full bg-[#d97706] shrink-0 opacity-80"></span
-                >{{ officialDeployment ? $t('hero_perk_platforms') : '浏览器本地版' }}
-              </div>
-            </div>
-
-            <!-- 手机端不支持提示 Banner -->
-            <div class="block sm:hidden mb-3">
-              <div
-                class="flex items-center gap-3 bg-[rgba(234,179,8,.08)] border border-[rgba(234,179,8,.35)] text-[#92400e] rounded-xl px-4 py-3 leading-[1.6] text-left"
-              >
-                <span class="text-[.84rem]">本地版可直接在浏览器使用；键盘练习建议使用电脑。</span>
-              </div>
-            </div>
-
-            <div v-if="officialDeployment" class="mini-qr-card w-full box-border mb-3 flex sm:hidden">
-              <NuxtImg
-                src="/imgs/mini.png"
-                :alt="$t('mini_program')"
-                class="w-24 h-24 rounded-xl shrink-0 border border-[var(--hw-border)]"
-              />
-              <div class="flex flex-col gap-0.5 flex-1 min-w-0">
-                <div class="text-lg font-semibold text-[var(--hw-text)]">{{ $t('mini_program') }}</div>
-                <div class="text-sm text-[var(--hw-text-3)] leading-[1.5]">{{ $t('mini_program_desc') }}</div>
-              </div>
-            </div>
-
-            <!-- CTA buttons -->
-            <div
-              class="flex gap-3 justify-center lg:justify-start flex-col sm:flex-row items-stretch sm:items-center flex-wrap"
-            >
-              <button
-                class="inline-flex items-center justify-center gap-2 px-7 h-12 rounded-xl font-semibold text-[.97rem] text-white bg-gradient-to-r from-[#7c3aed] to-[#2563eb] border-none shadow-[0_4px_20px_rgba(124,58,237,.32)] cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_6px_28px_rgba(124,58,237,.42)] transition-all duration-200 sm:w-auto"
-                @click="navigateTo('/words')"
-              >
-                <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  class="shrink-0"
-                >
-                  <polyline points="13 17 18 12 13 7" />
-                  <polyline points="6 17 11 12 6 7" />
-                </svg>
-                {{ $t('hero_cta_start') }}
-              </button>
-              <a
-                class="inline-flex items-center justify-center gap-2 px-7 h-12 rounded-xl font-semibold text-[.97rem] text-[var(--hw-text)] bg-transparent border border-solid border-[var(--hw-border)] no-underline hover:bg-[rgba(124,58,237,.06)] hover:border-[#7c3aed] hover:text-[#7c3aed] transition-all duration-200 sm:w-auto"
-                :href="GITHUB"
-                target="_blank"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" class="shrink-0">
-                  <path
-                    d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"
-                  />
-                </svg>
-                {{ $t('hero_cta_github') }}
-              </a>
-            </div>
-
-            <!-- 网站地址 -->
-            <div class="flex justify-center lg:justify-start mt-4">
-              <a
-                :href="currentSiteAddress || '/'"
-                target="_blank"
-                class="inline-flex items-center gap-1.5 text-[var(--hw-text-3)] no-underline hover:text-[#7c3aed] transition-colors duration-150"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  class="shrink-0 opacity-50"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path
-                    d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
-                  />
-                </svg>
-                {{ currentSiteAddress }}
-              </a>
-            </div>
+      <section class="demo" aria-label="单词打字体验">
+        <div class="demo-heading">
+          <span>{{ $t('home_try_typing') }}</span>
+          <span class="demo-count">{{ demoIdx + 1 }} / {{ demoWords.length }}</span>
+        </div>
+        <div ref="demoCardRef" class="demo-input" :class="{ focused: demoFocused }" tabindex="0" role="textbox" :aria-label="$t('demo_typing_hint')" aria-multiline="false" @focus="demoFocused = true" @blur="demoFocused = false" @click="focusDemoCard()" @keydown="onDemoKey" @keydown.backspace="onDemoBackspace">
+          <div class="demo-phonetic">{{ demoWord.phonetic }}</div>
+          <div class="demo-word" :class="{ 'demo-shake': demoShake }"><span class="demo-correct">{{ demoInput }}</span><span class="demo-wrong">{{ demoWrong }}</span><span class="demo-remaining">{{ demoRemain }}</span></div>
+          <div class="demo-definition">{{ demoWord.trans }}</div>
+          <div class="demo-hint" role="status">
+            <template v-if="demoDone">{{ $t('demo_done') }} {{ $t('demo_press_space_next') }}</template>
+            <template v-else>{{ demoFocused ? $t('demo_typing_hint') : $t('demo_click_guide') }}</template>
           </div>
-
-          <!-- ── Right: Demo 卡片 + 小程序码 ── -->
-          <div class="hidden lg:flex flex-col items-center gap-4 w-[450px] shrink-0">
-            <!-- 打字 Demo 卡片 -->
-            <div class="w-full relative group/demo">
-              <!-- 未 focus 时的引导覆盖层 -->
-              <div
-                v-if="!demoFocused"
-                class="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl cursor-pointer"
-                style="background: rgba(0, 0, 0, 0)"
-                @click="focusDemoCard()"
-              >
-                <!-- 引导文字，带脉冲抖动效果 -->
-                <div class="demo-click-guide">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    class="shrink-0"
-                  >
-                    <rect x="2" y="4" width="20" height="16" rx="2" />
-                    <path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h4" />
-                  </svg>
-                  <span>{{ $t('demo_click_guide') }}</span>
-                </div>
-                <div class="demo-bounce-arrow">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="M12 5v14M5 12l7 7 7-7" />
-                  </svg>
-                </div>
-              </div>
-
-              <!-- Demo 主卡片 -->
-              <div
-                ref="demoCardRef"
-                class="bg-[var(--hw-bg-card)] border-2 rounded-2xl shadow-[var(--hw-shadow-lg)] overflow-hidden outline-none transition-all duration-250"
-                :class="
-                  demoFocused
-                    ? 'border-[#7c3aed] shadow-[0_0_0_4px_rgba(124,58,237,.14),var(--hw-shadow-lg)]'
-                    : 'border-[var(--hw-border)] demo-idle-border'
-                "
-                tabindex="0"
-                @focus="demoFocused = true"
-                @blur="demoFocused = false"
-                @keydown="onDemoKey"
-                @keydown.backspace="onDemoBackspace"
-              >
-                <!-- 顶栏 -->
-                <div class="flex items-center gap-1.5 px-4 py-3 border-b border-[var(--hw-border)] bg-[var(--hw-bg)]">
-                  <span class="w-3 h-3 rounded-full bg-[#ff5f57]"></span>
-                  <span class="w-3 h-3 rounded-full bg-[#febc2e]"></span>
-                  <span class="w-3 h-3 rounded-full bg-[#28c840]"></span>
-                  <span class="ml-3 text-[.78rem] text-[var(--hw-text-3)] font-mono"
-                    >TypeWords — {{ $t('nav_words') }}</span
-                  >
-                  <div class="ml-auto">
-                    <span
-                      class="text-[.68rem] px-2 py-0.5 rounded-full font-semibold transition-all duration-200"
-                      :class="
-                        demoFocused
-                          ? 'bg-[rgba(16,185,129,.12)] text-[#059669]'
-                          : 'bg-[rgba(124,58,237,.08)] text-[#7c3aed]'
-                      "
-                      >{{ demoFocused ? '● ' + $t('demo_typing_status') : '○ ' + $t('demo_click_to_activate') }}</span
-                    >
-                  </div>
-                </div>
-
-                <!-- 内容区 -->
-                <div class="px-8 py-5 flex flex-col items-center gap-1 cursor-text" @click="focusDemoCard()">
-                  <!-- 音标 -->
-                  <div class="text-[1rem] text-[var(--hw-text-3)] tracking-widest">{{ demoWord.phonetic }}</div>
-                  <!-- 单词打字区 -->
-                  <div
-                    class="text-[3rem] leading-none tracking-widest min-h-[3.8rem] flex items-center en-article-family"
-                    :class="{ 'demo-shake': demoShake }"
-                  >
-                    <span class="text-[#16a34a]">{{ demoInput }}</span>
-                    <span class="text-[rgba(239,68,68,.85)]">{{ demoWrong }}</span>
-                    <span class="text-[var(--hw-text-3)]">{{ demoRemain }}</span>
-                  </div>
-                  <!-- 释义 -->
-                  <div class="text-[.9rem] text-[var(--hw-text-2)] mt-1">{{ demoWord.trans }}</div>
-                  <!-- 例句 -->
-                  <div class="w-full mt-3 border-t border-[var(--hw-border)] pt-3 flex flex-col gap-1.5">
-                    <div class="text-[.72rem] font-bold tracking-[.06em] uppercase text-[var(--hw-text-3)]">
-                      {{ $t('demo_example_label') }}
-                    </div>
-                    <div
-                      v-for="(ex, ei) in demoWord.examples"
-                      :key="ei"
-                      class="text-[.82rem] leading-[1.6] flex flex-col gap-0.5"
-                    >
-                      <div class="italic text-[var(--hw-text-2)]">
-                        <span class="text-[#7c3aed] font-bold not-italic mr-1">{{ ei + 1 }}.</span>{{ ex.en }}
-                      </div>
-                      <div class="text-[.78rem] text-[var(--hw-text-3)] not-italic pl-3.5">{{ ex.zh }}</div>
-                    </div>
-                  </div>
-                  <!-- 完成提示 / 状态文字 -->
-                  <div class="h-12 flex justify-end flex-col">
-                    <div v-if="demoDone" class="mt-3 flex flex-col items-center gap-1">
-                      <div class="text-[1.1rem] text-[#16a34a] font-bold">{{ $t('demo_done') }}</div>
-                      <div class="text-sm text-blue-5">
-                        {{ $t('demo_press_space_next') }}
-                      </div>
-                    </div>
-                    <div v-else-if="demoFocused" class="mt-3 text-sm text-[var(--hw-text-3)]">
-                      {{ $t('demo_typing_hint') }}
-                    </div>
-                  </div>
-                  <!-- 进度点 -->
-                  <div class="flex gap-1.5 mt-2">
-                    <span
-                      v-for="(_, i) in demoWords"
-                      :key="i"
-                      class="w-1.5 h-1.5 rounded-full transition-colors duration-200"
-                      :class="i === demoIdx ? 'bg-[#7c3aed]' : 'bg-[var(--hw-border)]'"
-                    ></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- ── 小程序码 — 独立卡片（不再混入 CTA 按钮旁） ── -->
-            <div v-if="officialDeployment" class="mini-qr-card w-full box-border flex">
-              <NuxtImg
-                src="/imgs/mini.png"
-                :alt="$t('mini_program')"
-                class="w-24 h-24 rounded-xl shrink-0 border border-[var(--hw-border)]"
-              />
-              <div class="flex flex-col gap-0.5 flex-1 min-w-0">
-                <div class="text-lg font-semibold text-[var(--hw-text)]">{{ $t('mini_program') }}</div>
-                <div class="text-sm text-[var(--hw-text-3)] leading-[1.5]">{{ $t('mini_program_desc') }}</div>
-              </div>
-            </div>
-            <NuxtLink
-              v-if="!officialDeployment"
-              to="/dict-list"
-              class="mini-qr-card w-full box-border flex flex-col gap-2 no-underline"
-              ><strong>学习内容已保存在本机</strong
-              ><span class="text-sm">到词典市场选择内容；文章支持 A1–C2 参考分级。</span
-              ><span>浏览词典与分级文章 →</span></NuxtLink
-            >
+        </div>
+        <div class="demo-examples">
+          <div v-for="(example, index) in demoWord.examples" :key="index" class="demo-example">
+            <p lang="en">{{ example.en }}</p>
+            <p>{{ example.zh }}</p>
           </div>
         </div>
       </section>
     </main>
+
+    <footer class="home-footer">
+      <span>{{ $t('home_free_note') }}</span>
+      <span><template v-if="dictionaryCount !== null">{{ dictionaryCount }} {{ $t('home_dictionary_count') }} · </template>{{ $t('home_reading_levels') }}</span>
+    </footer>
   </div>
 </template>
 
 <style scoped>
-/* CSS 变量主题令牌 */
-.hw {
-  --hw-bg: #f4f5f7;
-  --hw-bg-card: #ffffff;
-  --hw-bg-nav: rgba(244, 245, 247, 0.88);
-  --hw-border: #e2e4e8;
-  --hw-text: #0d0d0d;
-  --hw-text-2: #555e6e;
-  --hw-text-3: #585d66;
-  --hw-shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
-  --hw-shadow-md: 0 4px 20px rgba(0, 0, 0, 0.09);
-  --hw-shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.11);
-  background: var(--hw-bg);
-  color: var(--hw-text);
-}
-
-@font-face {
-  font-family: 'Garamond';
-  font-style: italic;
-  font-weight: 700;
-  font-display: swap;
-  src: url(https://fonts.gstatic.com/l/font?kit=XoHg2Y_-T6Oo88RDZSQPp2sshj3I9QTcqzw&skey=509bbab0bec2784f&v=v18)
-    format('woff2');
-}
-
-/* Hero 标题艺术字体 */
-.hero-title {
-  font-family: Garamond, Georgia, 'Times New Roman', serif;
-  font-style: italic;
-  letter-spacing: 0.08em;
-}
-
-/* 核心价值 pill */
-.value-pill {
-  @apply inline-flex items-center gap-1.5 text-[.78rem] font-bold tracking-[.03em] px-3.5 py-1.5 rounded-full border;
-}
-.value-pill--purple {
-  @apply border-[rgba(124,58,237,.35)] text-[#7c3aed] bg-[rgba(124,58,237,.07)];
-}
-.value-pill--blue {
-  @apply border-[rgba(37,99,235,.35)] text-[#2563eb] bg-[rgba(37,99,235,.07)];
-}
-.value-pill--green {
-  @apply border-[rgba(16,185,129,.35)] text-[#059669] bg-[rgba(16,185,129,.07)];
-}
-
-/* 打字 Demo 输错抖动 */
-.demo-shake {
-  animation: demo-shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-@keyframes demo-shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20% {
-    transform: translateX(-5px);
-  }
-  40% {
-    transform: translateX(5px);
-  }
-  60% {
-    transform: translateX(-4px);
-  }
-  80% {
-    transform: translateX(4px);
-  }
-}
-
-/* Demo 卡片空闲时边框呼吸动画 */
-.demo-idle-border {
-  animation: demo-border-pulse 2.4s ease-in-out infinite;
-}
-@keyframes demo-border-pulse {
-  0%,
-  100% {
-    border-color: var(--hw-border);
-  }
-  50% {
-    border-color: rgba(124, 58, 237, 0.45);
-  }
-}
-
-/* 点击引导文字 — 抖动 + 脉冲 */
-.demo-click-guide {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #7c3aed;
-  background: rgba(124, 58, 237, 0.09);
-  border: 1.5px solid rgba(124, 58, 237, 0.35);
-  border-radius: 999px;
-  padding: 8px 18px;
-  cursor: pointer;
-  animation: guide-attention 1.8s ease-in-out infinite;
-  backdrop-filter: blur(4px);
-}
-@keyframes guide-attention {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
-  }
-  30% {
-    transform: translateY(-3px) scale(1.03);
-    box-shadow: 0 4px 16px rgba(124, 58, 237, 0.18);
-  }
-  60% {
-    transform: translateY(0) scale(1);
-    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
-  }
-  80% {
-    transform: translateY(-2px) scale(1.01);
-  }
-}
-
-/* 引导箭头弹跳 */
-.demo-bounce-arrow {
+.home {
+  --home-bg: #f7f7f7;
+  --home-surface: #fff;
+  --home-text: #252525;
+  --home-muted: #636363;
+  --home-line: #dadada;
+  --home-inverse: #fff;
+  min-height: 100svh;
+  box-sizing: border-box;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(124, 58, 237, 0.6);
-  margin-top: 6px;
-  animation: arrow-bounce 1.4s ease-in-out infinite;
+  flex-direction: column;
+  padding: 0 32px;
+  background: var(--home-bg);
+  color: var(--home-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
 }
-@keyframes arrow-bounce {
-  0%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.6;
-  }
-  50% {
-    transform: translateY(5px);
-    opacity: 1;
-  }
+:global(html.dark) .home {
+  --home-bg: #1c1c1c;
+  --home-surface: #252525;
+  --home-text: #e8e8e8;
+  --home-muted: #b5b5b5;
+  --home-line: #424242;
+  --home-inverse: #1c1c1c;
 }
-
-/* 小程序码卡片 */
-.mini-qr-card {
-  @apply items-center gap-3 bg-[var(--hw-bg-card)] border border-[var(--hw-border)] rounded-xl px-4 py-3 shadow-[var(--hw-shadow-sm)] hover:border-[rgba(124,58,237,.4)] hover:shadow-[var(--hw-shadow-md)] transition-all duration-200;
+.home a { color: inherit; text-decoration: none; }
+.home a:hover { text-decoration: underline; text-underline-offset: 5px; }
+.home :is(a, button, [tabindex]):focus-visible { outline: 2px solid var(--home-text); outline-offset: 5px; }
+.home-header, .home-main, .home-footer { width: 100%; max-width: 1120px; margin: 0 auto; box-sizing: border-box; }
+.home-header { min-height: 80px; display: flex; align-items: center; gap: 48px; border-bottom: 1px solid var(--home-line); }
+.home-brand { font-weight: 650; font-size: 19px; letter-spacing: -0.5px; }
+.home-header nav { display: flex; gap: 28px; font-size: 14px; color: var(--home-muted); }
+.source-link { margin-left: auto; font-size: 14px; }
+.menu-button { display: none; }
+.home-main { flex: 1; display: grid; grid-template-columns: 1fr 440px; align-items: center; gap: 100px; padding: 88px 0; }
+.home-intro h1 { font-size: clamp(42px, 5vw, 64px); line-height: 1.12; letter-spacing: -0.035em; font-weight: 600; margin: 0 0 22px; }
+.home-intro h2 { font-size: clamp(22px, 2.4vw, 28px); font-weight: 500; line-height: 1.5; margin: 0 0 20px; }
+.home-description { color: var(--home-muted); font-size: 16px; line-height: 1.9; max-width: 32em; margin: 0; }
+.home-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 24px; margin-top: 34px; }
+.home-actions .primary-action { display: inline-flex; align-items: center; justify-content: space-between; gap: 30px; min-height: 48px; padding: 0 22px; box-sizing: border-box; border: 1px solid var(--home-text); border-radius: 5px; background: var(--home-text); color: var(--home-inverse); font-size: 15px; font-weight: 600; }
+.home-actions .primary-action:hover { text-decoration: none; opacity: 0.88; }
+.secondary-action { font-size: 15px; text-decoration: underline !important; text-underline-offset: 5px; }
+.home-note { color: var(--home-muted); font-size: 13px; line-height: 1.8; margin: 24px 0 0; }
+.demo { min-width: 0; border: 1px solid var(--home-line); border-radius: 8px; background: var(--home-surface); }
+.demo-heading { display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--home-line); font-size: 14px; }
+.demo-count { color: var(--home-muted); font-variant-numeric: tabular-nums; }
+.demo-input { text-align: center; padding: 34px 24px 22px; cursor: text; border-radius: 3px; outline-offset: -5px !important; }
+.demo-input.focused { outline: 1px solid var(--home-text); }
+.demo-phonetic { font-size: 14px; color: var(--home-muted); }
+.demo-word { font-family: Georgia, 'Times New Roman', serif; font-size: 46px; line-height: 1.4; margin: 8px 0 10px; white-space: nowrap; }
+.demo-remaining { color: var(--home-muted); }
+.demo-correct { color: var(--home-text); }
+.demo-wrong { color: #c33e36; }
+.demo-definition { font-size: 14px; line-height: 1.7; }
+.demo-hint { min-height: 20px; margin-top: 22px; font-size: 12px; line-height: 1.7; color: var(--home-muted); }
+.demo-examples { border-top: 1px solid var(--home-line); margin: 0 24px; padding: 20px 0 24px; }
+.demo-example + .demo-example { margin-top: 18px; }
+.demo-example p { margin: 0; font-size: 13px; line-height: 1.8; }
+.demo-example p + p { color: var(--home-muted); margin-top: 3px; }
+.home-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 22px 0; border-top: 1px solid var(--home-line); font-size: 12px; line-height: 1.8; color: var(--home-muted); }
+.demo-shake { animation: input-error 160ms linear; }
+@keyframes input-error { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@media (max-width: 1000px) {
+  .home-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; }
+  .demo-word { font-size: 38px; }
 }
+@media (max-width: 700px) {
+  .home { padding: 0 22px; }
+  .home-header { min-height: 68px; gap: 20px; flex-wrap: wrap; }
+  .menu-button { display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: inherit; min-width: 44px; min-height: 44px; margin-left: auto; cursor: pointer; font-size: 22px; }
+  .source-link { margin-left: 0; }
+  .home-header nav { display: none; order: 4; width: 100%; flex-wrap: wrap; gap: 0; padding-bottom: 14px; }
+  .home-header nav.open { display: flex; }
+  .home-header nav a { min-height: 44px; display: flex; align-items: center; margin-right: 28px; }
+  .home-main { grid-template-columns: minmax(0, 1fr); gap: 44px; padding: 52px 0; }
+  .home-intro h1 { margin-bottom: 18px; }
+  .home-actions { gap: 20px; margin-top: 28px; }
+  .demo-word { font-size: 42px; }
+  .demo-input { padding: 28px 18px 20px; }
+  .home-footer { flex-direction: column; gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { .demo-shake { animation: none; } }
 </style>

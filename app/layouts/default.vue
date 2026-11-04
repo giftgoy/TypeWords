@@ -130,10 +130,6 @@ onMounted(() => {
           </svg>
           <span>{{ $t('study_record') }}</span>
         </NuxtLink>
-        <NuxtLink to="/feedback" class="row" :title="$t('feedback')" :aria-label="$t('feedback')">
-          <IconFluentCommentEdit20Regular />
-          <span>{{ $t('feedback') }}</span>
-        </NuxtLink>
         <NuxtLink to="/doc" class="row" :title="$t('document')" :aria-label="$t('document')">
           <IconFluentDocument20Regular />
           <span>{{ $t('document') }}</span>
