@@ -12,6 +12,7 @@ services:
     depends_on:
       - tts
       - data
+      - reading
     volumes:
       # 每日自动拉取的文章（articles 容器写入），nginx 直接静态托管
       - typewords-feed:/usr/share/nginx/html/dicts/en/article/feed:ro
@@ -21,6 +22,16 @@ services:
     image: typewords-tts:local
     container_name: typewords-tts
     restart: unless-stopped
+
+  reading:
+    build: ./deploy/reading
+    image: typewords-reading:local
+    container_name: typewords-reading
+    ports:
+      - "127.0.0.1:5568:8000"
+    restart: unless-stopped
+    volumes:
+      - typewords-reading:/data
 
   # 共享学习数据：所有浏览器/设备通过 /api/data 读写同一份 SQLite（存在 typewords-data 卷里，重建容器不丢）
   data:
@@ -54,5 +65,6 @@ services:
       - typewords-feed:/feed
 
 volumes:
+  typewords-reading:
   typewords-data:
   typewords-feed:

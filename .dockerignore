@@ -11,6 +11,11 @@ dist
 !README.md
 .DS_Store
 .env*.local
+.env
+.env.*
+**/.env
+**/.env.*
+.gstack
 coverage
 .cache
 .shots
