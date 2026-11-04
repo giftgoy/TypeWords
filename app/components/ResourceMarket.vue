@@ -324,6 +324,10 @@ function openResource(item: MarketResource) {
             </div>
             <button class="resource-title" @click="showPreview(item)">{{ item.name }}</button>
             <p class="resource-description">{{ item.description }}</p>
+            <p v-if="item.url.startsWith('feed/')" class="text-xs color-gray" role="status">
+              最近检查：{{ item.checkedAt ? new Date(item.checkedAt).toLocaleString() : '暂无记录' }}
+              · {{ item.fetchStatus === 'checking' ? '正在检查来源，先展示已有内容' : item.fetchStatus === 'error' ? '检查失败，保留历史内容' : '来源内容，不保证每日有新稿' }}
+            </p>
             <div class="resource-tags">
               <span v-if="item.level" class="level-tag">{{ item.level }}</span
               ><span v-for="tag in item.tags.slice(0, 2)" :key="tag">{{ tag }}</span>

@@ -55,6 +55,7 @@ export interface Sentence {
 }
 
 export interface Article {
+  translationVersion?: number
   id?: number | string
   title: string
   titleTranslate: string
@@ -118,6 +119,10 @@ export type DictResource = {
   translateLanguage: TranslateLanguageType
   //todo 可以考虑删除了
   type?: DictType
+  checkedAt?: string
+  updatedAt?: string
+  fetchStatus?: 'ok' | 'error' | 'checking'
+  newCount?: number
   version?: number
   language: LanguageType
 }

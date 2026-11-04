@@ -21,6 +21,7 @@ import {
   AppEnv,
   BACKUP_INDEX_KEY,
   DefaultShortcutKeyMap,
+  DICT_LIST,
   DictId,
   ENV,
   RESOURCE_PATH,
@@ -54,6 +55,9 @@ function normalizeStoredDict(val: any): Dict {
   const systemIds = [DictId.wordCollect, DictId.wordWrong, DictId.wordKnown, DictId.articleCollect]
   if (systemIds.includes(next.enName ?? next.id)) {
     next.system = true
+    const names = { wordCollect: '收藏', wordWrong: '错词', wordKnown: '已掌握', articleCollect: '收藏' }
+    next.name = names[next.enName ?? next.id]
+    if ((next.enName ?? next.id) === DictId.wordKnown) next.description = '已掌握后的单词不会出现在练习中'
   }
   if (!next.enName && next.en_name) {
     next.enName = next.en_name
@@ -363,15 +367,32 @@ export async function sleep(time: number) {
 }
 
 export async function _getDictDataByUrl(val: DictResource, type: DictType = DictType.word): Promise<Dict> {
+  if (type === DictType.article && val.url?.startsWith('feed/')) {
+    const catalog = await fetch(resourceWrap('/dicts/en/article/feed/index.json'), { cache: 'no-cache' }).then(r => r.json())
+    const source = catalog.find(item => isSameDictResource(item, val))
+    if (source) val = { ...val, ...source }
+  }
+  if (!('custom' in val && val.custom) && /^[?？\s,，]+$/.test(val.description || '')) {
+    const catalog = await fetch(resourceWrap(type === DictType.word ? DICT_LIST.WORD.ALL : DICT_LIST.ARTICLE.ALL)).then(r => r.json())
+    const source = catalog.flat().find(item => isSameDictResource(item, val))
+    if (source) val = { ...val, name: source.name, description: source.description }
+  }
   // await sleep(2000);
   let dictResourceUrl = ENV.RESOURCE_URL + `/dicts/${val.language}/word/${val.url}`
   if (type === DictType.article) {
     dictResourceUrl = ENV.RESOURCE_URL + `/dicts/${val.language}/article/${val.url}`
   }
-  let s = await fetch(resourceWrap(dictResourceUrl, val.version)).then(r => r.json())
+  let s = await fetch(resourceWrap(dictResourceUrl, val.version), {
+    cache: val.url?.startsWith('feed/') ? 'no-cache' : 'default',
+  }).then(r => r.json())
   if (s) {
     //单词词典有两种类型，用article来判断
     if (type === DictType.article) {
+      // Discard old machine-aligned fragments only at the official feed boundary.
+      // Custom copies and manually edited translations must remain untouched.
+      if (val.url?.startsWith('feed/') && !('custom' in val && val.custom)) {
+        s = s.map(article => article.translationVersion === 2 ? article : { ...article, textTranslate: '' })
+      }
       return getDefaultDict({ ...val, articles: s })
     } else {
       return getDefaultDict({ ...val, words: s })

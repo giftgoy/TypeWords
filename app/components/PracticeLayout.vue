@@ -118,7 +118,8 @@ defineProps<{
 @media (max-width: 768px) {
   .wrap {
     height: calc(100vh - 6rem);
-    width: 100vw;
+    width: 100%;
+    min-width: 0;
     padding: 0 1rem;
     box-sizing: border-box;
   }
@@ -143,9 +144,10 @@ defineProps<{
 
 // 超小屏幕适配
 @media (max-width: 480px) {
+  .practice-panel-toggle { bottom: 190px; }
   .wrap {
     height: calc(100vh - 5rem);
-    padding: 0 0.5rem;
+    padding: 0 1rem;
   }
 
   .footer-hide {

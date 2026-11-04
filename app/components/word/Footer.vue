@@ -56,6 +56,7 @@ const flowDisplay = computed(() =>
 const status = computed(() => flowDisplay.value.status)
 const stages = computed(() => flowDisplay.value.stages)
 const showSkipStep = computed(() => flowDisplay.value.showSkipStep)
+const currentNode = computed(() => activeFlowConfig.value.nodes[activeCursor.value.nodeIndex])
 </script>
 
 <template>
@@ -72,6 +73,10 @@ const showSkipStep = computed(() => flowDisplay.value.showSkipStep)
     </Tooltip>
 
     <div class="bottom">
+      <p class="text-sm m-0 py-2" role="status" v-if="currentNode">
+        {{ $t(currentNode.label) }} · 主步骤 {{ activeCursor.stepIndex + 1 }} / {{ currentNode.steps.length }}：{{ status }}
+        <span class="block text-xs color-gray">每个词可能练习多轮；小组巩固和错词重练属于当前步骤，完成全部步骤后结算。</span>
+      </p>
       <StageProgress :stages="stages" />
 
       <div class="flex justify-between items-center">
@@ -79,9 +84,8 @@ const showSkipStep = computed(() => flowDisplay.value.showSkipStep)
           <div class="row">
             <Tooltip title="进度 / 错误数 / 单词数">
               <div class="shrink-0">
-                <span> {{ practiceData.index + 1 }}</span> /
-                <span class="color-red"> {{ format(practiceData.wrongWords.length, '', 0) }}</span> /
-                <span>{{ practiceData.words.length }}</span>
+                <span>本轮 {{ practiceData.index + 1 }} / {{ practiceData.words.length }} 词</span>
+                <span class="color-red"> · 错词 {{ practiceData.wrongWords.length }}</span>
               </div>
             </Tooltip>
             <div class="line"></div>
@@ -150,9 +154,8 @@ const showSkipStep = computed(() => flowDisplay.value.showSkipStep)
       <StageProgress :stages="stages" />
       <Tooltip title="进度 / 错误数 / 单词数">
         <div class="shrink-0">
-          <span> {{ practiceData.index + 1 }}</span> /
-          <span class="color-red"> {{ format(practiceData.wrongWords.length, '', 0) }}</span> /
-          <span>{{ practiceData.words.length }}</span>
+          <span>本轮 {{ practiceData.index + 1 }} / {{ practiceData.words.length }} 词</span>
+          <span class="color-red"> · 错词 {{ practiceData.wrongWords.length }}</span>
         </div>
       </Tooltip>
     </div>

@@ -15,7 +15,7 @@ import {
   LOCAL_FILE_KEY,
   Origin,
 } from '@/core/config/env'
-import { get, set } from '@/core/utils/storage'
+import { get, set, storageStatus } from '@/core/utils/storage'
 import { useRuntimeStore } from '@/core/stores/runtime'
 import { useExport } from '@/core/hooks/export'
 import Log from '@/components/setting/Log.vue'
@@ -631,7 +631,9 @@ function disable360() {
             <!--            导出数据-->
             <SettingItem
               :title="$t('export_data_title')"
-              :desc="$t('data_saved_locally') + $t('export_data_desc_suffix', { appName: APP_NAME })"
+              :desc="storageStatus.phase === 'saved' || storageStatus.phase === 'pending'
+                ? '学习数据暂存于浏览器并保存到当前部署的服务器。同一服务器地址下可跨浏览器读取；外部云备份状态请查看“数据同步”。迁移到其他部署或备份音频文件时，请导出 ZIP。'
+                : '当前未连接到数据服务器，学习数据暂存在此浏览器。清除网站数据或换设备前请先导出 ZIP；请留意页面的服务器保存状态。'"
             >
               <BaseButton size="large" :loading="exportLoading" @click="exportData()">{{
                 $t('export_data_backup')

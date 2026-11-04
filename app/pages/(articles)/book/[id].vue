@@ -229,7 +229,7 @@ const list = $computed(() => {
 
 let showTranslate = $ref(true)
 let startPlay = $ref(false)
-let displayMode = $ref<'card' | 'inline' | 'line'>('inline')
+let displayMode = $ref<'card' | 'inline' | 'line'>('card')
 let articleWrapperRef = $ref<HTMLElement>()
 
 const handleVolumeUpdate = (volume: number) => {
@@ -337,6 +337,11 @@ function play(sentence: Sentence, onEnd: () => void) {
       class="bg-second w-full 3xl:w-7/10 2xl:w-8/10 xl:w-full 2xl:card 2xl:h-[97vh] h-full p-3 box-border overflow-hidden mb-0"
     >
       <div class="flex box-border flex-col h-full" v-if="showBookDetail" v-loading="loading">
+        <p v-if="runtimeStore.editDict.url?.startsWith('feed/')" class="text-sm my-3" role="status">
+          来源文章，非今日新闻。最近检查：{{ runtimeStore.editDict.checkedAt ? new Date(runtimeStore.editDict.checkedAt).toLocaleString() : '暂无检查记录' }}。
+          {{ runtimeStore.editDict.fetchStatus === 'checking' ? '正在检查来源，先展示已有内容。' : runtimeStore.editDict.fetchStatus === 'error' ? '本次检查失败，展示已有内容。' : '来源无新稿时保留历史文章。' }}
+          中文为机器翻译，仅供参考；无可靠对应译文时仅展示原文。
+        </p>
         <div class="dict-header flex justify-between items-center relative">
           <div class="flex gap-space">
             <BackIcon class="dict-back z-2" />

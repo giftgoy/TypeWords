@@ -192,11 +192,7 @@ onMounted(() => {
   } else {
     loading = true
   }
-  if (route.query.guide) {
-    showConflictNotice = false
-  } else {
-    showConflictNotice = true
-  }
+
 })
 
 async function unmount() {
@@ -444,6 +440,8 @@ provide('currentPractice', currentPractice)
 <template>
   <PracticeLayout v-loading="loading" panelLeft="var(--article-panel-margin-left)">
     <template v-slot:practice>
+      <button type="button" class="text-sm underline mb-3 bg-transparent border-0 color-inherit" @click="showConflictNotice = true">无法输入？查看排查方法</button>
+      <p v-if="store.sbook.url?.startsWith('feed/') && articleData.article.translationVersion !== 2" class="text-sm mb-3" role="status">当前文章尚无完整对应译文，暂显示原文；翻译服务恢复后会重新生成。</p>
       <TypingArticle
         ref="typingArticleRef"
         @wrong="wrong"
@@ -489,7 +487,7 @@ provide('currentPractice', currentPractice)
           </Tooltip>
         </div>
         <div class="bottom">
-          <div class="flex justify-between items-center gap-2">
+          <div class="article-toolbar-layout flex justify-between items-center gap-2">
             <div class="stat">
               <div class="row">
                 <div class="num">{{ currentPractice.length }}次/{{ msToMinute(total(currentPractice, 'spend')) }}</div>
@@ -527,16 +525,18 @@ provide('currentPractice', currentPractice)
             ></ArticleAudio>
             <div class="flex flex-col items-center justify-center gap-1">
               <div class="flex gap-2 center">
-                <SettingDialog type="article" />
+                <div class="flex flex-col items-center"><SettingDialog type="article" /><span class="article-tool-label">设置</span></div>
 
                 <BaseIcon :title="`下一句(${settingStore.shortcutKeyMap[ShortcutKey.Next]})`" @click="skip">
                   <IconFluentArrowBounce20Regular class="transform-rotate-180" />
+                  <span class="article-tool-label">下一句</span>
                 </BaseIcon>
                 <BaseIcon
                   :title="`播放当前句子(${settingStore.shortcutKeyMap[ShortcutKey.PlayWordPronunciation]})`"
                   @click="play"
                 >
                   <IconFluentReplay20Regular />
+                  <span class="article-tool-label">重播</span>
                 </BaseIcon>
                 <BaseIcon
                   @click="settingStore.dictation = !settingStore.dictation"
@@ -544,6 +544,7 @@ provide('currentPractice', currentPractice)
                 >
                   <IconFluentEyeOff16Regular v-if="settingStore.dictation" />
                   <IconFluentEye16Regular v-else />
+                  <span class="article-tool-label">默写</span>
                 </BaseIcon>
 
                 <BaseIcon
@@ -552,6 +553,7 @@ provide('currentPractice', currentPractice)
                 >
                   <IconPhTranslate v-if="settingStore.translate" />
                   <IconFluentTranslateOff16Regular v-else />
+                  <span class="article-tool-label">译文</span>
                 </BaseIcon>
 
                 <!--              <BaseIcon-->
@@ -564,6 +566,7 @@ provide('currentPractice', currentPractice)
                   :title="`面板(${settingStore.shortcutKeyMap[ShortcutKey.TogglePanel]})`"
                 >
                   <IconFluentTextListAbcUppercaseLtr20Regular />
+                  <span class="article-tool-label">列表</span>
                 </BaseIcon>
               </div>
             </div>
@@ -575,10 +578,11 @@ provide('currentPractice', currentPractice)
 
   <EditSingleArticleModal v-model="showEditArticle" :article="editArticle" @save="saveArticle" />
 
-  <ConflictNotice v-if="showConflictNotice" />
+  <ConflictNotice v-if="showConflictNotice" @close="showConflictNotice = false" />
 </template>
 
 <style scoped lang="scss">
+.article-tool-label { display: none; }
 .footer {
   width: var(--article-toolbar-width);
   @apply bg-primary;
@@ -672,6 +676,10 @@ provide('currentPractice', currentPractice)
     .bottom {
       padding: 0.3rem 0.5rem 0.5rem 0.5rem;
       border-radius: 0.4rem;
+      .article-toolbar-layout { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+      .stat { width: 100%; }
+      :deep(.icon-wrapper) { min-width: 40px; min-height: 44px; height: auto; flex-direction: column; }
+      .article-tool-label { display: block; font-size: 11px; white-space: nowrap; }
 
       .stat {
         margin-top: 0.3rem;
@@ -697,7 +705,7 @@ provide('currentPractice', currentPractice)
       .flex.flex-col.items-center.justify-center.gap-1 {
         .flex.gap-2.center {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(6, minmax(0, 1fr));
           gap: 0.4rem;
 
           .base-icon {

@@ -285,7 +285,7 @@ export function useGetDict() {
       if (!dict) dict = dict_list.flat().find(v => isDictIdMatch(v, dictId)) as Dict
     }
     if (dict && dict.id) {
-      if (!dict?.articles?.length && !dict?.custom && !dict?.system && !dict?.is_default) {
+      if ((!dict?.articles?.length || dict.url?.startsWith('feed/')) && !dict?.custom && !dict?.system && !dict?.is_default) {
         fetching = true
         let r = await _getDictDataByUrl(dict, DictType.article)
         runtimeStore.editDict = r

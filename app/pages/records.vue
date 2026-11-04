@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { getPracticeWordCacheLocal } from '@/core/utils/cache'
+import { pendingStudyRows } from '@/core/utils/pending-study-statistics'
 import dayjs from 'dayjs'
 import { useI18n } from 'vue-i18n'
 import { BasePage, Progress } from '@/base'
@@ -8,6 +10,10 @@ import { msToHourMinute } from '@/core/utils'
 
 const { t: $t } = useI18n()
 const store = useBaseStore()
+const pendingStat = ref<any>(null)
+onMounted(async () => {
+  pendingStat.value = (await getPracticeWordCacheLocal())?.statStoreData
+})
 
 type StatRow = {
   startDate: number
@@ -17,12 +23,13 @@ type StatRow = {
   review: number
   wrong: number
   dictName: string
+  pending?: boolean
 }
 
 const wordBooks = computed(() => (store.word.bookList || []).filter((book: any) => !book.system && book.length))
 
 const rows = computed<StatRow[]>(() =>
-  wordBooks.value
+  store.word.bookList
     .flatMap((book: any) =>
       (book.statistics || []).map((stat: any) => ({
         startDate: stat.startDate,
@@ -34,6 +41,7 @@ const rows = computed<StatRow[]>(() =>
         dictName: book.name || '',
       }))
     )
+    .concat(pendingStudyRows(pendingStat.value, store.sdict.name))
     .sort((a, b) => b.startDate - a.startDate)
 )
 
@@ -168,9 +176,9 @@ function durationText(ms: number) {
           <tbody>
             <tr v-for="row in recentRows" :key="row.startDate + row.dictName" class="border-t border-solid border-[var(--color-line)]">
               <td class="py-2 pr-3 whitespace-nowrap">{{ dayjs(row.startDate).format('YYYY-MM-DD HH:mm') }}</td>
-              <td class="py-2 pr-3 truncate max-w-48">{{ row.dictName }}</td>
-              <td class="py-2 pr-3 text-right">{{ row.new }}</td>
-              <td class="py-2 pr-3 text-right">{{ row.review }}</td>
+              <td class="py-2 pr-3 truncate max-w-48">{{ row.dictName }}<span v-if="row.pending"> · 未完成，可继续学习</span></td>
+              <td class="py-2 pr-3 text-right">{{ row.pending ? '待结算' : row.new }}</td>
+              <td class="py-2 pr-3 text-right">{{ row.pending ? '待结算' : row.review }}</td>
               <td class="py-2 pr-3 text-right">{{ row.wrong }}</td>
               <td class="py-2 pr-0 text-right whitespace-nowrap">{{ durationText(row.spend) }}</td>
             </tr>

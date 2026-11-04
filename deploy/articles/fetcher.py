@@ -31,12 +31,13 @@ MAX_PER_BOOK = int(os.environ.get("MAX_PER_BOOK", "200"))
 SCHEDULE_HOUR = int(os.environ.get("SCHEDULE_HOUR", "6"))  # UTC
 RUN_ON_START = os.environ.get("RUN_ON_START", "1").lower() not in ("0", "false", "no")
 USER_AGENT = os.environ.get("HTTP_USER_AGENT", "TypeWordsFeed/1.0 (local study app)")
+translation_retry_after = 0
 
 BOOKS = {
     "wikinews": {
         "id": "feed-wikinews",
-        "name": "每日新闻（Wikinews）",
-        "description": "每天从英文维基新闻抓取最新报道，附中文对照，适合中高级泛读。",
+        "name": "新闻阅读（Wikinews）",
+        "description": "每日检查来源更新，保留原始报道日期；来源可能没有新内容，并非今日新闻。中文为机器翻译，仅供参考。",
         "category": "每日更新",
         "tags": ["新闻", "每日更新", "双语对照"],
         "level": "B2",
@@ -186,33 +187,32 @@ def fetch_gutenberg(limit):
 def translate(text):
     if not TRANSLATE_ENABLED or not text.strip():
         return ""
-    chunks, current = [], ""
+    # Preserve the paragraph/line boundaries consumed by genArticleSectionData.
+    # API-sized chunks must never become new paragraphs or disappear on failure.
+    paragraphs = []
     for paragraph in text.split("\n\n"):
-        while len(paragraph) > 450:
-            cut = paragraph.rfind(" ", 0, 450)
-            cut = cut if cut > 200 else 450
-            if current:
-                chunks.append(current)
-                current = ""
-            chunks.append(paragraph[:cut])
-            paragraph = paragraph[cut:].strip()
-        if len(current) + len(paragraph) > 450 and current:
-            chunks.append(current)
-            current = paragraph
-        else:
-            current = (current + "\n\n" + paragraph).strip()
-    if current:
-        chunks.append(current)
-
-    out = []
-    for chunk in chunks:
-        translated = translate_chunk(chunk)
-        if translated:
-            out.append(translated)
-    return "\n\n".join(out)
+        lines = []
+        for line in paragraph.split("\n"):
+            remaining, chunks = line.strip(), []
+            while remaining:
+                cut = len(remaining)
+                if cut > 450:
+                    sentence_end = max(remaining.rfind(mark, 0, 450) for mark in (". ", "! ", "? "))
+                    cut = sentence_end + 1 if sentence_end >= 0 else remaining.rfind(" ", 0, 450)
+                    if cut <= 0:
+                        cut = 450
+                chunks.append(remaining[:cut])
+                remaining = remaining[cut:].strip()
+            translated = [translate_chunk(chunk) for chunk in chunks]
+            lines.append("".join(translated) if all(translated) else "[本段翻译暂不可用]")
+        paragraphs.append("\n".join(lines))
+    return "\n\n".join(paragraphs)
 
 
 def translate_chunk(chunk):
+    global translation_retry_after
+    if time.time() < translation_retry_after:
+        return ""
     if TRANSLATE_PROVIDER == "libretranslate" and LT_URL:
         try:
             body = json.dumps({"q": chunk, "source": "en", "target": "zh", "format": "text"}).encode("utf-8")
@@ -237,6 +237,11 @@ def translate_chunk(chunk):
             print("mymemory status:", data.get("responseStatus"), data.get("responseDetails"), flush=True)
             return ""
         return value
+    except urllib.error.HTTPError as error:
+        if error.code == 429:
+            translation_retry_after = time.time() + 3600
+        print("mymemory unavailable:", error, flush=True)
+        return ""
     except Exception as error:
         print("mymemory failed:", error, flush=True)
         return ""
@@ -264,9 +269,19 @@ def as_article(title, text):
 
 def enrich(articles, book_key):
     for article in articles:
-        article["titleTranslate"] = translate(article["title"]) if TRANSLATE_ENABLED else ""
-        article["textTranslate"] = translate(article["text"])
+        article["titleTranslate"] = (translate(article["title"]) if TRANSLATE_ENABLED else "") or article.get("titleTranslate", "")
+        previous = article.get("textTranslate", "") if article.get("translationVersion") == 2 else ""
+        translated = translate(article["text"])
+        if previous:
+            old_lines = previous.split("\n")
+            translated = "\n".join(
+                old_lines[index] if line == "[本段翻译暂不可用]" and index < len(old_lines) and old_lines[index] else line
+                for index, line in enumerate(translated.split("\n"))
+            ) if translated else previous
+        article["textTranslate"] = translated
+        article["translationIncomplete"] = not article["textTranslate"] or "[本段翻译暂不可用]" in article["textTranslate"]
         article["source"] = BOOKS[book_key]["source"]
+        article["translationVersion"] = 2
     return articles
 
 
@@ -288,24 +303,36 @@ def save_json(path, payload):
 
 def run_once():
     os.makedirs(FEED_DIR, exist_ok=True)
-    catalog = []
+    catalog = load_book(os.path.join(FEED_DIR, "index.json"))
     fetchers = {"wikinews": fetch_wikinews, "simplewiki": fetch_simplewiki, "gutenberg": fetch_gutenberg}
     for key, fetcher in fetchers.items():
+        checked_at = datetime.now(timezone.utc).isoformat()
+        status = "ok"
+        # Publish the check immediately, even when the source or translator is slow.
+        for item in catalog:
+            if item.get("id") == BOOKS[key]["id"]:
+                item.update(name=BOOKS[key]["name"], description=BOOKS[key]["description"],
+                            checkedAt=checked_at, fetchStatus="checking")
+        save_json(os.path.join(FEED_DIR, "index.json"), catalog)
         try:
             fresh = fetcher(DAILY_COUNT)
         except Exception as error:
             print(f"[{key}] fetch failed: {error}", flush=True)
             fresh = []
+            status = "error"
         fresh = [item for item in fresh if item["text"].strip()]
-        if fresh:
-            fresh = enrich(fresh, key)
         path = os.path.join(FEED_DIR, f"{key}.json")
         existing = load_book(path)
         seen = {(item.get("title"), item.get("text", "")[:80]) for item in existing}
-        merged = existing + [item for item in fresh if (item.get("title"), item.get("text", "")[:80]) not in seen]
+        additions = [item for item in fresh if (item.get("title"), item.get("text", "")[:80]) not in seen]
+        merged = existing + enrich(additions, key)
         merged = merged[-MAX_PER_BOOK:]
+        for article in merged:
+            if article.get("translationVersion") != 2 or (TRANSLATE_ENABLED and article.get("translationIncomplete")):
+                enrich([article], key)
         save_json(path, merged)
         meta = BOOKS[key]
+        previous = next((item for item in catalog if item.get("id") == meta["id"]), {})
         catalog = [item for item in catalog if item.get("id") != meta["id"]]
         catalog.append({
             "id": meta["id"], "enName": meta["id"], "name": meta["name"],
@@ -315,7 +342,9 @@ def run_once():
             "url": f"feed/{key}.json", "length": len(merged), "type": "article",
             "language": "en", "translateLanguage": "zh-CN", "version": 1,
             "source": meta["source"], "license": meta["license"], "featured": False,
-            "updatedAt": datetime.now(timezone.utc).isoformat(),
+            "updatedAt": checked_at if fresh else previous.get("updatedAt"),
+            "checkedAt": checked_at, "fetchStatus": status,
+            "newCount": sum((item.get("title"), item.get("text", "")[:80]) not in seen for item in fresh),
         })
         # 每完成一个源就落一次目录，避免后面的源卡住导致整轮不可见
         save_json(os.path.join(FEED_DIR, "index.json"), catalog)

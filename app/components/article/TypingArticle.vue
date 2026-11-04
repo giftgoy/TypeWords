@@ -137,7 +137,7 @@ watch([() => sectionIndex, () => sentenceIndex, () => wordIndex, () => stringInd
 watch(
   () => settingStore.translate,
   () => {
-    checkTranslateLocation().then(() => checkCursorPosition())
+    checkCursorPosition()
   }
 )
 
@@ -187,7 +187,7 @@ async function init() {
     emit('play', { sentence: props.article.sections[sectionIndex][sentenceIndex], handle: false })
     if (isNameWord()) next()
   })
-  checkTranslateLocation().then(() => checkCursorPosition())
+  checkCursorPosition()
   focusMobileInput()
 }
 
@@ -229,37 +229,6 @@ function checkCursorPosition(a = sectionIndex, b = sentenceIndex, c = wordIndex)
         }
       }
     }
-  })
-}
-
-function checkTranslateLocation() {
-  // console.log('checkTranslateLocation')
-  return new Promise<void>(resolve => {
-    if (isMob) {
-      resolve()
-      return
-    }
-    _nextTick(() => {
-      let articleRect = articleWrapperRef.getBoundingClientRect()
-      props.article.sections.map((v, i) => {
-        v.map((w, j) => {
-          let location = i + '-' + j
-          let wordClassName = `.word${location}`
-          let word = document.querySelector(wordClassName)
-          let wordRect = word.getBoundingClientRect()
-          let translateClassName = `.translate${location}`
-          let translate: HTMLDivElement = document.querySelector(translateClassName)
-
-          translate.style.opacity = '1'
-          translate.style.top = wordRect.top - articleRect.top + 24 + 'px'
-          // @ts-ignore
-          translate.firstChild.style.width = wordRect.left - articleRect.left + 'px'
-          // console.log(word, wordRect.left - articleRect.left)
-          // console.log('word-wordRect', wordRect)
-        })
-      })
-      resolve()
-    }, 300)
   })
 }
 
@@ -326,7 +295,6 @@ let lock = false
 
 async function nextSentence() {
   if (lock || isEnd) return
-  checkTranslateLocation()
   lock = true
   let currentSection = props.article.sections[sectionIndex]
   let currentSentence = currentSection[sentenceIndex]
@@ -536,7 +504,6 @@ function del() {
     if (endWord) wordIndex = currentSentence.words.length - 1
     let currentWord: ArticleWord = currentSentence.words[wordIndex]
     if (endString) {
-      checkTranslateLocation()
       if (currentWord.nextSpace) {
         isSpace = true
         stringIndex = currentWord.word.length
@@ -596,7 +563,7 @@ function applyPracticeCache(cache: PracticeArticleCache) {
     if (sentence) {
       emit('play', { sentence, handle: false })
     }
-    checkTranslateLocation().then(() => checkCursorPosition())
+    checkCursorPosition()
     focusMobileInput()
   })
 }
@@ -843,7 +810,7 @@ const currentPractice = inject('currentPractice', [])
                 :is-shake="isCurrent(indexI, indexJ, indexW) && isSpace && wrong !== ''"
               />
             </span>
-            <span class="sentence-translate-mobile" v-if="isMob && settingStore.translate && sentence.translate">
+            <span class="sentence-translate-mobile" v-if="settingStore.translate && sentence.translate">
               {{ sentence.translate }}
             </span>
           </span>
@@ -867,23 +834,7 @@ const currentPractice = inject('currentPractice', [])
           </div>
         </div>
       </article>
-      <div class="translate" v-show="settingStore.translate">
-        <template v-for="(v, indexI) in props.article.sections">
-          <div
-            class="row"
-            :class="[
-              `translate${indexI + '-' + indexJ}`,
-              sectionIndex > indexI ? 'wrote' : sectionIndex >= indexI && sentenceIndex > indexJ ? 'wrote' : '',
-            ]"
-            v-for="(item, indexJ) in v"
-          >
-            <span class="space"></span>
-            <Transition name="fade">
-              <span class="text" v-if="item.translate">{{ item.translate }}</span>
-            </Transition>
-          </div>
-        </template>
-      </div>
+
       <div class="cursor" v-if="!isEnd" :style="{ top: cursor.top + 'px', left: cursor.left + 'px' }"></div>
     </div>
 
@@ -930,7 +881,6 @@ const currentPractice = inject('currentPractice', [])
   color: grey;
 }
 
-$translate-lh: 3.2;
 $article-lh: 2.4;
 
 .typing-article {
@@ -954,9 +904,6 @@ $article-lh: 2.4;
   .dictation {
     .border-bottom {
       display: inline-block !important;
-    }
-    .translate {
-      color: var(--color-reverse-black);
     }
   }
 
@@ -1023,43 +970,27 @@ $article-lh: 2.4;
     }
   }
 
-  .translate {
-    pointer-events: none;
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 100%;
-    font-size: 1.2rem;
-    line-height: $translate-lh;
-    letter-spacing: 0.2rem;
-    font-family: var(--zh-article-family);
-    font-weight: bold;
-    color: #818181;
-
-    .row {
-      position: absolute;
-      left: 0;
-      width: 100%;
-      opacity: 0;
-      transition: all 0.3s;
-
-      .space {
-        transition: all 0.3s;
-        display: inline-block;
-      }
-    }
-  }
 }
 
 .sentence-translate-mobile {
-  display: none;
+  display: block;
+  font-family: var(--zh-article-family);
+  font-size: 1rem;
+  line-height: 1.8;
+  color: var(--color-main-text);
+  margin: 0.5rem 0 1.2rem;
 }
+.sentence { display: block; }
+.typing-article .tall article { line-height: 1.8; }
 
 
 @media (max-width: 768px) {
   .typing-article {
+    width: 100%;
     max-width: 100%;
+    font-size: 1.125rem;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
   }
 }
 </style>
