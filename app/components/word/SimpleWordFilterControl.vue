@@ -23,6 +23,7 @@ const draftWords = computed(() => parseSimpleWords(draft.value))
 const matches = computed(() => props.words.filter(word => savedSet.value.has(normalizeWordKey(word.word))))
 const draftMatches = computed(() => props.words.filter(word => draftWords.value.includes(normalizeWordKey(word.word))))
 const currentKey = computed(() => normalizeWordKey(props.currentWord || ''))
+const currentIsSimple = computed(() => savedSet.value.has(currentKey.value))
 
 function openEditor() {
   draft.value = parseSimpleWords(store.simpleWords).join(', ')
@@ -50,6 +51,21 @@ function addCurrentWord() {
   if (!currentKey.value) return
   draft.value = parseSimpleWords([...draftWords.value, currentKey.value]).join(', ')
   draftEnabled.value = true
+}
+async function saveCurrentWord() {
+  const key = currentKey.value
+  if (saving.value || !store.load || !key || savedSet.value.has(key)) return
+  saving.value = true
+  store.simpleWords = parseSimpleWords([...store.simpleWords, key])
+  try {
+    await persistence.saveDictState(store.$state, { pullWhenRemoteNewer: false })
+    Toast.success(settings.ignoreSimpleWord ? '已加入简单词汇列表，练习会自动跳过' : '已加入简单词汇列表，开启剔除后生效')
+  } catch {
+    store.simpleWords = store.simpleWords.filter(word => normalizeWordKey(word) !== key)
+    Toast.error('添加失败，请重试')
+  } finally {
+    saving.value = false
+  }
 }
 async function applyChanges() {
   saving.value = true
@@ -82,9 +98,22 @@ async function applyChanges() {
         <span class="switch-track" :class="{ enabled: settings.ignoreSimpleWord }" aria-hidden="true"><i></i></span>
         <span>剔除简单词汇</span><b>{{ settings.ignoreSimpleWord ? '已开启' : '已关闭' }}</b>
       </button>
-      <button type="button" class="manage-filter" :disabled="saving || !store.load" @click="openEditor">
-        管理名单<span v-if="words.length"> · 命中 {{ matches.length }} 词</span>
-      </button>
+      <div class="filter-actions">
+        <button
+          v-if="currentKey"
+          type="button"
+          class="add-simple-word"
+          :disabled="saving || !store.load || currentIsSimple"
+          :title="currentIsSimple ? '当前单词已在简单词汇列表中' : '将当前单词加入简单词汇列表'"
+          @click="saveCurrentWord"
+        >
+          <IconFluentAdd16Regular v-if="!currentIsSimple" aria-hidden="true" />
+          {{ currentIsSimple ? '已在简单词汇中' : '加入简单词汇' }}
+        </button>
+        <button type="button" class="manage-filter" :disabled="saving || !store.load" @click="openEditor">
+          管理名单<span v-if="words.length"> · 命中 {{ matches.length }} 词</span>
+        </button>
+      </div>
     </div>
     <p v-if="!compact" class="filter-note">按你定义的简单词名单跳过练习，支持随时关闭。词条和已有学习记录都会保留。</p>
   </div>
@@ -160,6 +189,37 @@ async function applyChanges() {
   font-size: 13px;
   cursor: pointer;
   padding: 5px 0;
+}
+.filter-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+.add-simple-word {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: var(--color-primary);
+  color: var(--color-link);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.add-simple-word:hover:enabled {
+  background: var(--color-third);
+}
+.add-simple-word:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+.add-simple-word:disabled {
+  color: var(--color-sub-text);
+  cursor: default;
+  opacity: 0.6;
 }
 .filter-switch:disabled {
   opacity: 0.5;
