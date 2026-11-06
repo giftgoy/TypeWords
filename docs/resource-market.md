@@ -10,6 +10,12 @@
 
 来源 URL、原文件 SHA-256、转换后数量和被跳过的无效条目索引见 `public/list/resource-sources.json`。上游 GPL-3.0 许可原文随附于 `public/resource-licenses/qwerty-learner-GPL-3.0.txt`。
 
+缺少例句的词在练习时按需加载本地双语补充例句，不改写原词库或用户编辑的例句。目前补充 4,023 个不同拼写的词，覆盖新概念 1 的 752 / 861 词；其余词明确显示暂未收录。每词至多两句，使用完整词边界匹配，不把 `coat` 匹配到 `overcoat` 中。相同首字母共用缓存，切词后丢弃过期请求结果，加载失败可以重试。
+
+例句来自 [ManyThings 的 Tatoeba 英汉句对](https://www.manythings.org/anki/)，固定到 2026-02-13 快照，CC BY 2.0 FR。英文、中文及作者署名原样保留；每句的“例句来源与署名”提供原句链接和许可，下载文件附带的说明保存在 `public/resource-licenses/tatoeba-manythings-about.txt`。归档 SHA-256 和各词库覆盖数量见 `public/list/word-example-sources.json`。
+
+补充例句支持原有朗读、目标词高亮和例句练习，遵循各练习阶段的显示策略。原有例句优先，补充内容只用于显示，不写入用户词条或改变学习进度。重新生成前，将上述快照的 `cmn-eng.zip`、解压后的 `cmn.txt` 和 `_about.txt` 放到 `.typewords.local/sources/tatoeba/`，然后运行 `pnpm run examples:prepare`；哈希不符会中止，避免静默替换数据源。
+
 新增 24 篇原创双语短文，分为 A1、A2、B1、B2、C1、C2 六本，每本 4 篇，英文与中文逐段对应。A1–C2 为编写时的参考难度，非官方 CEFR 评级；这些短文未附预录音频。原创内容源文件为 `scripts/market-content.mjs`，使用 CC0-1.0；原仓库附带的新概念英语示例不包含在该授权声明中，目录数已按实际内容修正为 5 篇。
 
 ## 实现与维护

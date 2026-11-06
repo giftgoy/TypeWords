@@ -6,6 +6,8 @@ import { APP_VERSION } from '../config/env'
 export type WordSubContent = {
   c: string //content
   cn: string
+  attribution?: string
+  sourceUrl?: string
 }
 export type Word = {
   id?: string

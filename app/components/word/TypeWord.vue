@@ -33,6 +33,7 @@ import WordMetaPanel from './WordMetaPanel.vue'
 import { useOnKeyboardEventListener } from '@/core/hooks/event.ts'
 import { _nextTick, throttle } from '@/core'
 import { usePracticeTypeWordController } from '@/core/composables/practice-words/usePracticeTypeWordController.ts'
+import { useWordExamples } from '@/core/composables/useWordExamples'
 
 const { t: $t } = useI18n()
 
@@ -61,6 +62,10 @@ const emit = defineEmits<{
 
 const settingStore = useSettingStore()
 const store = useBaseStore()
+const { wordWithExamples, loading: examplesLoading, failed: examplesFailed, reload: reloadExamples } = useWordExamples(
+  () => props.word,
+  () => store.sdict.language === 'en'
+)
 
 // ============ 音频 ============
 const playWordAudio = usePlayWordAudio()
@@ -75,7 +80,7 @@ const typingCoreRef = $ref<InstanceType<typeof WordTypingCore>>()
 const wordMetaPanelRef = $ref<InstanceType<typeof WordMetaPanel>>()
 
 const typeWordController = usePracticeTypeWordController({
-  getWord: () => props.word,
+  getWord: () => wordWithExamples.value,
   getPracticeType: () => props.practiceType,
   getPhaseKey: () => props.phaseKey,
   getIsWordMasked: () => effective.value.isWordMasked,
@@ -117,7 +122,7 @@ function onTypingCoreComplete() {
   if (
     [WordPracticeType.FollowWrite, WordPracticeType.Spell].includes(props.practiceType) &&
     settingStore.practiceSentence &&
-    props.word.sentences.length
+    wordWithExamples.value.sentences.length
   ) {
     isTypingWord = false
     return wordMetaPanelRef.startPracticeSentence()
@@ -504,7 +509,10 @@ useEvents([
       <!--      不要加key，里面有个只显示一次的变量-->
       <WordMetaPanel
         ref="wordMetaPanelRef"
-        :word="word"
+        :word="wordWithExamples"
+        :examples-loading="examplesLoading"
+        :examples-failed="examplesFailed"
+        @retry-examples="reloadExamples"
         @complete="onSentencePracticeComplete"
         :effective="effective"
         @wrong="emit('wrong')"

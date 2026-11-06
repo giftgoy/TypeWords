@@ -26,12 +26,15 @@ import { computed } from 'vue'
 import { watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTTsPlayAudio } from '@/core/hooks/sound.ts'
+import { exampleSourceUrl } from '@/core/utils/word-examples'
 
 const { t: $t } = useI18n()
 
 interface IProps {
   word: Word
   effective: PracticeViewState
+  examplesLoading?: boolean
+  examplesFailed?: boolean
 }
 
 const props = withDefaults(defineProps<IProps>(), {
@@ -41,6 +44,7 @@ const props = withDefaults(defineProps<IProps>(), {
 const emit = defineEmits<{
   complete: []
   wrong: []
+  retryExamples: []
 }>()
 
 const settingStore = useSettingStore()
@@ -154,6 +158,7 @@ defineExpose({ startPracticeSentence, playSentence })
     <template v-if="word?.sentences?.length">
       <div v-opacity="showDetails">
         <div class="line-white my-2"></div>
+        <h3 class="sentence-heading">例句</h3>
         <div
           class="sentence-typing"
           :class="{
@@ -174,9 +179,23 @@ defineExpose({ startPracticeSentence, playSentence })
             @complete="onCompleteSentence"
             @play="playSentence(j, { highlight: true })"
           />
+          <details v-if="i.attribution" class="sentence-source">
+            <summary>例句来源与署名</summary>
+            <p>{{ i.attribution }}</p>
+            <a v-if="exampleSourceUrl(i.sourceUrl)" :href="exampleSourceUrl(i.sourceUrl)" target="_blank" rel="noopener noreferrer">在 Tatoeba 查看原句</a>
+            <span> · </span>
+            <a href="https://creativecommons.org/licenses/by/2.0/fr/" target="_blank" rel="noopener noreferrer">CC BY 2.0 FR</a>
+          </details>
         </div>
       </div>
     </template>
+    <div v-else v-opacity="showDetails" class="sentence-status" role="status">
+      <span v-if="examplesLoading">正在加载例句…</span>
+      <template v-else-if="examplesFailed">
+        例句加载失败。<button type="button" @click="emit('retryExamples')">重试</button>
+      </template>
+      <span v-else>本地例句库暂未收录这个词的双语例句。</span>
+    </div>
 
     <!-- 短语列表 -->
     <template v-if="word?.phrases?.length">
@@ -272,6 +291,27 @@ defineExpose({ startPracticeSentence, playSentence })
 <style scoped lang="scss">
 .word-meta {
   width: 100%;
+
+  .sentence-heading {
+    margin: 12px 0 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-sub-text);
+  }
+
+  .sentence-source,
+  .sentence-status {
+    margin: 8px 0 16px;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--color-sub-text);
+  }
+
+  .sentence-source summary { cursor: pointer; }
+  .sentence-source p { overflow-wrap: anywhere; }
+  .sentence-source a,
+  .sentence-status button { color: var(--color-link); }
+  .sentence-status button { background: none; border: 0; cursor: pointer; font: inherit; }
 
   .label {
     width: 7rem;
