@@ -2,21 +2,20 @@
 param()
 
 $ErrorActionPreference = 'Stop'
-$entryPath = Join-Path $PSScriptRoot '.output\server\index.mjs'
-$statePath = Join-Path $PSScriptRoot '.typewords.local\server.json'
-if (-not (Test-Path -LiteralPath $statePath)) {
-    Write-Output 'TypeWords has no recorded server process.'
+$dockerCommand = Get-Command docker.exe -ErrorAction SilentlyContinue
+$dockerPath = if ($dockerCommand) { $dockerCommand.Source } else { Join-Path $env:ProgramFiles 'Docker\Docker\resources\bin\docker.exe' }
+if (-not (Test-Path -LiteralPath $dockerPath)) { throw 'Docker Desktop is not installed.' }
+
+$dockerReady = $false
+try {
+    & $dockerPath info --format '{{.ServerVersion}}' *> $null
+    $dockerReady = $LASTEXITCODE -eq 0
+} catch { $dockerReady = $false }
+if (-not $dockerReady) {
+    Write-Output 'Docker is not running. No containers were stopped.'
     exit 0
 }
 
-$serverState = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
-$candidate = Get-CimInstance Win32_Process -Filter "ProcessId = $([int]$serverState.processId)" -ErrorAction SilentlyContinue
-if ($null -ne $candidate) {
-    if ($candidate.Name -ne 'node.exe' -or $candidate.CommandLine -notlike ('*"' + $entryPath + '"*')) {
-        throw 'The recorded PID belongs to another process. No process was stopped.'
-    }
-    Stop-Process -Id $candidate.ProcessId -ErrorAction Stop
-    Wait-Process -Id $candidate.ProcessId -Timeout 10 -ErrorAction SilentlyContinue
-}
-Remove-Item -LiteralPath $statePath
-Write-Output 'TypeWords stopped.'
+& $dockerPath compose --project-directory $PSScriptRoot -f (Join-Path $PSScriptRoot 'docker-compose.yml') stop
+if ($LASTEXITCODE -ne 0) { throw 'Could not stop TypeWords. Check Docker Desktop.' }
+Write-Output 'TypeWords stopped. Its Docker volumes and learning data were kept.'

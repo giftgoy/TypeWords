@@ -99,7 +99,10 @@ def create_app(path):
         except Exception as error:
             return web.json_response({"error": f"{type(error).__name__}: {error}"}, status=502)
 
-    app.add_routes([web.get("/state", state), web.post("/initialize", initialize), web.put("/state", update),
+    async def health(request):
+        return web.json_response({"status": "ok"})
+
+    app.add_routes([web.get("/health", health), web.get("/state", state), web.post("/initialize", initialize), web.put("/state", update),
                     web.get("/archives", archives), web.post("/archives", archives), web.get("/archives/{id:\\d+}", archive),
                     web.post("/restore", restore),
                     web.get("/github/status", github_status), web.post("/github/backup", github_backup),

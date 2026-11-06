@@ -18,6 +18,8 @@ dist
 .gstack
 coverage
 .cache
+.typewords.local
+*.local
 .shots
 __pycache__
 apps/vscode/

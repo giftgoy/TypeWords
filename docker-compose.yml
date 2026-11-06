@@ -1,3 +1,5 @@
+name: typewords
+
 services:
   typewords:
     build:
@@ -7,12 +9,21 @@ services:
     image: typewords:local
     container_name: typewords
     ports:
-      - "5567:80"
+      - "127.0.0.1:5567:80"
     restart: unless-stopped
     depends_on:
-      - tts
-      - data
-      - reading
+      tts:
+        condition: service_healthy
+      data:
+        condition: service_healthy
+      reading:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
     volumes:
       # 每日自动拉取的文章（articles 容器写入），nginx 直接静态托管
       - typewords-feed:/usr/share/nginx/html/dicts/en/article/feed:ro
@@ -22,6 +33,12 @@ services:
     image: typewords-tts:local
     container_name: typewords-tts
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
 
   reading:
     build: ./deploy/reading
@@ -32,6 +49,12 @@ services:
     restart: unless-stopped
     volumes:
       - typewords-reading:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
 
   # 共享学习数据：所有浏览器/设备通过 /api/data 读写同一份 SQLite（存在 typewords-data 卷里，重建容器不丢）
   data:
@@ -46,6 +69,12 @@ services:
       DATA_FILE: /data/learning.sqlite3
     volumes:
       - typewords-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
 
   # 每日文章拉取：Wikinews / Simple Wikipedia / Project Gutenberg，写入 feed 卷
   articles:
