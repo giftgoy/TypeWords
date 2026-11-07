@@ -5,7 +5,7 @@
     "dev": "nuxt dev",
     "start": "nuxt dev",
     "build": "nuxt build",
-    "generate": "nuxt generate",
+    "generate": "nuxt generate && node deploy/check-static-styles.mjs .output/public",
     "preview": "nuxt preview",
     "i18n:write": "gulp i18nWrite",
     "test": "node --test tests/*.test.mjs",

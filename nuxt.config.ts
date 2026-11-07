@@ -74,6 +74,12 @@ export default defineNuxtConfig({
     '/book/nce4': { prerender: true },
   },
   vite: {
+    vue: {
+      features: {
+        // 宏转换会使客户端与 SSR 的源码不同，按路径生成标识，保持 scoped CSS 一致。
+        componentIdGenerator: 'filepath',
+      },
+    },
     plugins: [
       Components({
         resolvers: [
