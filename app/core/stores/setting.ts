@@ -18,6 +18,7 @@ export interface SettingState {
 
   articleSound: boolean
   articleAutoPlayNext: boolean
+  readingHideSimpleAnnotations: boolean // 阅读时隐藏简单词和已掌握词的标注
   articleSoundVolume: number
   articleSoundSpeed: number
 
@@ -94,6 +95,7 @@ export const getDefaultSettingState = (): SettingState => ({
 
   articleSound: true,
   articleAutoPlayNext: false,
+  readingHideSimpleAnnotations: true,
   articleSoundVolume: 100,
   articleSoundSpeed: 1,
 

@@ -10,10 +10,14 @@ import { useReaderAudio } from '@/core/immersive/useReaderAudio.ts'
 import { phraseTokenIndexes } from '@/core/immersive/phrases.ts'
 import { readingRequest } from '@/core/immersive/api.ts'
 import { useBaseStore } from '@/core/stores/base.ts'
+import { useSettingStore } from '@/core/stores/setting.ts'
+import { useDataSyncPersistence } from '@/core/composables/useDataSyncPersistence'
+import { SyncDataType } from '@/core/types/enum'
+import { excludeSimpleAnnotations } from '@/core/immersive/simple-annotations.ts'
 import { getDefaultWord } from '@/core/types/func.ts'
 import { usePlayWordAudio } from '@/core/hooks/sound.ts'
 import { lookupWord } from '@/core/hooks/useWordLookup.ts'
-import { get, set } from '@/core/utils/storage'
+import { get, set, flushStorage, storageStatus, reloadSharedStorage, retrySharedStorage } from '@/core/utils/storage'
 import ReadingModelSettings from './ReadingModelSettings.vue'
 import md5 from 'md5'
 import { lemmaCandidates } from '@/core/immersive/lemmatize.ts'
@@ -57,6 +61,7 @@ interface RenderedToken {
   title?: string
   target?: boolean
   form?: string
+  annotationExcluded?: boolean
 }
 
 interface RenderedParagraph {
@@ -68,6 +73,23 @@ const bundle = ref<GlossBundle | null>(null)
 const status = ref<'loading' | 'ready' | 'failed'>('loading')
 const glossVisible = ref(true)
 const store = useBaseStore()
+const settings = useSettingStore()
+const persistence = useDataSyncPersistence()
+const annotationSaving = ref(false)
+const annotationSaveError = ref('')
+async function saveAnnotationPreference() {
+  annotationSaving.value = true
+  annotationSaveError.value = ''
+  try {
+    await persistence.saveLocalAndSync(SyncDataType.setting, settings.$state, { pullWhenRemoteNewer: false })
+    await flushStorage()
+    if (storageStatus.phase === 'conflict' || storageStatus.phase === 'offline') annotationSaveError.value = storageStatus.message
+  } catch {
+    annotationSaveError.value = '标注设置暂未保存，请稍后重新切换重试。'
+  } finally {
+    annotationSaving.value = false
+  }
+}
 const { sources, load } = useReadingVocabulary()
 const source = ref('')
 const targetLemmas = ref<Set<string> | null>(null)
@@ -272,7 +294,7 @@ function annotateSentence(sentence: Sentence, b: GlossBundle | null, paragraphIn
     }
   }
 
-  return tokens
+  return excludeSimpleAnnotations(tokens, store.allIgnoreWordsSet, settings.readingHideSimpleAnnotations)
 }
 
 const paragraphs = computed<RenderedParagraph[]>(() => {
@@ -285,6 +307,8 @@ const paragraphs = computed<RenderedParagraph[]>(() => {
       .join(''),
   }))
 })
+const hiddenAnnotationCount = computed(() => new Set(paragraphs.value.flatMap(p => p.tokens)
+  .filter(t => t.annotationExcluded).map(t => t.text.toLowerCase().replace(/[’‘]/g, "'"))).size)
 
 /** 单词对照表：按正文出现顺序聚合，保留文中变形 */
 const glossary = computed(() => {
@@ -362,15 +386,19 @@ async function jumpToParagraph(index: number) {
     <p v-if="audioNotice" class="imm-message" role="status">{{ audioNotice }}</p>
     <div class="imm-study-tools">
       <label>目标词库 <select v-model="source" @change="changeSource"><option value="">{{ study?.targets?.length ? '本文目标词' : '全部英语词库' }}</option><option v-for="item in sources" :value="item.key" :key="item.key">{{ item.name }}</option></select></label>
+      <label title="按简单词和已掌握列表隐藏释义、高亮与下划线，仍可点击查词"><input type="checkbox" v-model="settings.readingHideSimpleAnnotations" :disabled="!settings.load || annotationSaving" @change="saveAnnotationPreference" />隐藏简单词标注</label>
+      <NuxtLink to="/setting?index=0">管理简单词</NuxtLink>
       <button type="button" :disabled="analyzing || status !== 'ready'" @click="calibrate">{{ analyzing ? '正在结合语境校准…' : '校准语境释义与搭配' }}</button>
       <NuxtLink to="/reading-studio">用目标词写短文</NuxtLink>
     </div>
+    <p v-if="annotationSaveError" class="imm-message" role="status">{{ annotationSaveError }} <button v-if="storageStatus.phase === 'conflict'" type="button" @click="reloadSharedStorage">备份当前副本并载入服务器记录</button><button v-else type="button" @click="retrySharedStorage">重试保存</button></p>
     <ReadingModelSettings />
     <ArticleDictionaryAnalysis :text="article.text" />
     <p v-if="analysisError" class="imm-message" role="alert">{{ analysisError }}</p>
     <div class="imm-head">
       <span class="imm-stat" v-if="status === 'ready'">
         目标词 {{ new Set(glossary.map(v => v.lemma)).size }} 个<span v-if="phraseList.length"> · 搭配 {{ phraseList.length }} 条</span> · {{ study ? '含文中释义；未校准词使用词典' : '词典释义（尚未语境校准）' }}
+        <span v-if="settings.readingHideSimpleAnnotations && hiddenAnnotationCount"> · 已隐藏 {{ hiddenAnnotationCount }} 种简单／已掌握词形标注</span>
       </span>
       <span class="imm-stat" v-else-if="status === 'loading'">正在加载词库…</span>
       <span class="imm-stat imm-stat--warn" v-else>释义索引加载失败，仅显示原文。</span>
@@ -475,6 +503,7 @@ async function jumpToParagraph(index: number) {
   max-width: 100%;
 }
 .imm-study-tools label { min-width: 0; max-width: 100%; }
+.imm-study-tools label:has(input[type=checkbox]) { display: inline-flex; align-items: center; gap: 5px; }
 .imm-study-tools select { max-width: 240px; }
 .imm-player button:disabled { opacity: .45; cursor: default; }
 .imm-player label { display: inline-flex; align-items: center; gap: 4px; }
@@ -495,6 +524,7 @@ async function jumpToParagraph(index: number) {
 
 .imm-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
