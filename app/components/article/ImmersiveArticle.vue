@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ArticleDictionaryAnalysis from './ArticleDictionaryAnalysis.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Article, Sentence } from '@/core/types/types.ts'
 import { PracticeArticleWordType } from '@/core/types/enum.ts'
@@ -365,6 +366,7 @@ async function jumpToParagraph(index: number) {
       <NuxtLink to="/reading-studio">用目标词写短文</NuxtLink>
     </div>
     <ReadingModelSettings />
+    <ArticleDictionaryAnalysis :text="article.text" />
     <p v-if="analysisError" class="imm-message" role="alert">{{ analysisError }}</p>
     <div class="imm-head">
       <span class="imm-stat" v-if="status === 'ready'">

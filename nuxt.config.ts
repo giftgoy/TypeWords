@@ -69,6 +69,8 @@ export default defineNuxtConfig({
     '/growth': { ssr: false },
     '/growth/**': { ssr: false },
     '/articles': { ssr: false },
+    '/ebooks': { ssr: false },
+    '/ebooks/**': { ssr: false },
     '/setting': { ssr: false },
     '/book/nce1': { prerender: true },
     '/book/nce2': { prerender: true },

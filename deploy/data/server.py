@@ -1,10 +1,12 @@
 import asyncio
 import os
+from pathlib import Path
 
 from aiohttp import web
 from github_sync import GithubSync
 from storage import Conflict, Storage
 from growth import Growth, GrowthError
+from ebooks import register_ebooks
 
 
 @web.middleware
@@ -81,6 +83,7 @@ def create_app(path):
     app["storage"] = Storage(path)
     app["github"] = GithubSync(app["storage"])
     app["growth"] = Growth(app["storage"])
+    app["ebooks"] = register_ebooks(app, Path(path).parent / "ebooks")
 
     async def growth_state(request):
         if request.method == "GET":

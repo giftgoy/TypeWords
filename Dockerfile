@@ -21,7 +21,7 @@ RUN pnpm install --frozen-lockfile
 
 # 再拷源码构建
 COPY . .
-RUN pnpm generate
+RUN node deploy/prepare-dictionary-membership.mjs && pnpm generate
 
 # ---------- 运行阶段 ----------
 FROM nginx:alpine AS runtime

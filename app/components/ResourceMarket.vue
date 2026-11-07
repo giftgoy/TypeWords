@@ -192,6 +192,7 @@ function openResource(item: MarketResource) {
         <nav class="market-tabs" aria-label="资源类型">
           <NuxtLink to="/dict-list" :class="{ active: words }"><span aria-hidden="true">Aa</span> 词典市场</NuxtLink>
           <NuxtLink to="/book-list" :class="{ active: !words }"><span aria-hidden="true">¶</span> 分级文章</NuxtLink>
+          <NuxtLink to="/ebooks"><span aria-hidden="true">↗</span> 外刊资源</NuxtLink>
         </nav>
         <span v-if="!loading && !loadError" class="catalog-summary"
           >{{ resources.length }} 本{{ noun }}<i></i>{{ totalContent.toLocaleString() }} {{ unit }}内容</span

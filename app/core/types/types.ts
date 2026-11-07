@@ -57,6 +57,9 @@ export interface Sentence {
 }
 
 export interface Article {
+  source?: string
+  sourceUrl?: string
+  sourceIssueId?: string
   readingStudy?: {
     targets: string[]
     vocabulary: { paragraph: number; form: string; lemma: string; meaning: string; phonetic?: string; occurrence?: number }[]

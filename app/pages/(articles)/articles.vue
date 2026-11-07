@@ -210,6 +210,7 @@ const { data: recommendBookList, isFetching } = useFetch(resourceWrap(DICT_LIST.
 
 <template>
   <BasePage class="study-page">
+    <NuxtLink to="/ebooks" class="card flex items-center justify-between gap-4" style="text-decoration:none"><div><strong>外刊资源 · 阅读与词汇分析</strong><p class="text-sm color-gray mt-2">经济学人、纽约客、大西洋月刊、连线 · 按篇阅读并查看词汇所属词典</p></div><span>浏览外刊 →</span></NuxtLink>
     <NuxtLink to="/reading-studio" class="color-link">用目标词生成背诵短文 →</NuxtLink>
     <div class="card flex flex-col xl:flex-row justify-between gap-space p-4 md:p-6">
       <div class="">
