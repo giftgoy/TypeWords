@@ -13,6 +13,10 @@ import isoWeek from 'dayjs/plugin/isoWeek'
 import { msToHourMinute } from '@/core/utils'
 import ChannelIcons from '@/components/channel-icons/ChannelIcons.vue'
 import { useI18n } from 'vue-i18n'
+import { computed, ref } from 'vue'
+import { dictionaryGrowthId, useGrowthStore } from '@/core/stores/growth'
+import { milestoneFeedback } from '@/core/growth/presentation'
+import DictionaryMilestones from '@/components/growth/DictionaryMilestones.vue'
 
 dayjs.extend(isoWeek)
 dayjs.extend(isBetween)
@@ -26,6 +30,17 @@ const store = useBaseStore()
 const settingStore = useSettingStore()
 const statStore = usePracticeStore()
 const model = defineModel({ default: false })
+const growth = useGrowthStore()
+const milestoneMessage = ref('')
+const plan = computed(() => growth.state.plans[dictionaryGrowthId(store.sdict)])
+watch(() => [model.value, props.loading], async ([open, loading]) => {
+  if (!open || loading || !plan.value) return
+  try {
+    const data = await growth.act({ op: 'claimMilestones', dictionaryId: plan.value.id })
+    const marks = data.notifications || []
+    milestoneMessage.value = marks.length ? `达到 ${marks.at(-1).threshold}% · ${marks.at(-1).name}。${milestoneFeedback(marks.at(-1))}` : ''
+  } catch {}
+})
 let list = $ref<boolean[]>([])
 const practiceData = inject<PracticeData>('practiceData')!
 
@@ -179,9 +194,13 @@ const encouragementText = $computed(() => {
               </div>
 
               <!-- Progress Overview -->
-              <div class="bg-[var(--bg-card-secend)] rounded-xl py-2 px-6">
+              <div v-if="plan" class="bg-[var(--bg-card-secend)] rounded-xl py-2 px-6">
+                <p v-if="milestoneMessage" role="status" class="mb-3 font-medium">{{ milestoneMessage }}</p>
+                <DictionaryMilestones :plan="plan" />
+              </div>
+              <div v-else class="bg-[var(--bg-card-secend)] rounded-xl py-2 px-6">
                 <div class="flex justify-between items-center mb-3">
-                  <div class="text-xl font-semibold">{{ $t('study_progress') }}</div>
+                  <div class="text-xl font-semibold">历史学习位置</div>
                   <div class="text-2xl font-bold text-purple-600">{{ studyProgress }}%</div>
                 </div>
                 <Progress :percentage="studyProgress" size="large" :show-text="false" />

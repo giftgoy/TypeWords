@@ -34,6 +34,7 @@ import { useOnKeyboardEventListener } from '@/core/hooks/event.ts'
 import { _nextTick, throttle } from '@/core'
 import { usePracticeTypeWordController } from '@/core/composables/practice-words/usePracticeTypeWordController.ts'
 import { useWordExamples } from '@/core/composables/useWordExamples'
+import { useGrowthStore } from '@/core/stores/growth'
 
 const { t: $t } = useI18n()
 
@@ -62,6 +63,11 @@ const emit = defineEmits<{
 
 const settingStore = useSettingStore()
 const store = useBaseStore()
+const growth = useGrowthStore()
+watch(() => [props.word.word, props.phaseKey], async ([word]) => {
+  if (!import.meta.client || !word) return
+  try { await growth.load(); await growth.contact([word], crypto.randomUUID()) } catch {}
+}, { immediate: true })
 const { wordWithExamples, loading: examplesLoading, failed: examplesFailed, reload: reloadExamples } = useWordExamples(
   () => props.word,
   () => store.sdict.language === 'en'

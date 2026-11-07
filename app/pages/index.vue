@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GrowthOverview from '@/components/growth/GrowthOverview.vue'
 import { APP_NAME, GITHUB, DICT_LIST } from '@/core/config/env.ts'
 import { resourceWrap } from '@/core/utils'
 import { readMarketCatalog } from '@/core/utils/resource-market'
@@ -179,6 +180,8 @@ useSeoMeta({ title: () => 'TypeWords' })
       </section>
     </main>
 
+    <div class="home-growth"><GrowthOverview /></div>
+
     <footer class="home-footer">
       <span>{{ $t('home_free_note') }}</span>
       <span><template v-if="dictionaryCount !== null">{{ dictionaryCount }} {{ $t('home_dictionary_count') }} · </template>{{ $t('home_reading_levels') }}</span>
@@ -214,7 +217,7 @@ useSeoMeta({ title: () => 'TypeWords' })
 .home a { color: inherit; text-decoration: none; }
 .home a:hover { text-decoration: underline; text-underline-offset: 5px; }
 .home :is(a, button, [tabindex]):focus-visible { outline: 2px solid var(--home-text); outline-offset: 5px; }
-.home-header, .home-main, .home-footer { width: 100%; max-width: 1120px; margin: 0 auto; box-sizing: border-box; }
+.home-header, .home-main, .home-footer, .home-growth { width: 100%; max-width: 1120px; margin: 0 auto; box-sizing: border-box; }
 .home-header { min-height: 80px; display: flex; align-items: center; gap: 48px; border-bottom: 1px solid var(--home-line); }
 .home-brand { font-weight: 650; font-size: 19px; letter-spacing: -0.5px; }
 .home-header nav { display: flex; gap: 28px; font-size: 14px; color: var(--home-muted); }

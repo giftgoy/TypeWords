@@ -4,6 +4,8 @@ import { useSettingStore } from '@/core/stores/setting.ts'
 import type { TaskWords, Word } from '@/core/types/types.ts'
 import { shuffle } from '@/core/utils'
 import { normalizeWordKey } from '@/core/utils/simple-word-filter'
+import { dictionaryGrowthId, useGrowthStore } from '@/core/stores/growth'
+import { applyGrowthDeferrals } from '@/core/growth/scheduling'
 
 export interface StudyTaskResult {
   taskWords: TaskWords
@@ -52,12 +54,18 @@ export function addRandomReviewWhenNoDue(taskWords: TaskWords, options: AddRando
 export function createStudyTask(): StudyTaskResult {
   const store = useBaseStore()
   const settingStore = useSettingStore()
-  return addRandomReviewWhenNoDue(getCurrentStudyWord(), {
+  const growth = useGrowthStore()
+  const plan = growth.state.plans[dictionaryGrowthId(store.sdict)]
+  const ignored = store.getIgnoreWordsSet()
+  const held = growth.heldWords
+  // 先入服务器延期队列，再从日常新词中移走；游标跨过它们后仍能找回。
+  const task = applyGrowthDeferrals(getCurrentStudyWord(), store.sdict.words, plan?.deferred || [], held, ignored, store.sdict.perDayStudyNumber)
+  return addRandomReviewWhenNoDue(task, {
     words: store.sdict.words,
     lastLearnIndex: store.sdict.lastLearnIndex,
     perDayStudyNumber: store.sdict.perDayStudyNumber,
     wordReviewRatio: settingStore.wordReviewRatio,
-    ignoreSet: store.getIgnoreWordsSet(),
+    ignoreSet: new Set([...ignored, ...held]),
     enabled: settingStore.autoAddRandomReviewWhenNoDue,
   })
 }

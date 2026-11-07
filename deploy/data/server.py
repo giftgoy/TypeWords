@@ -4,6 +4,7 @@ import os
 from aiohttp import web
 from github_sync import GithubSync
 from storage import Conflict, Storage
+from growth import Growth, GrowthError
 
 
 @web.middleware
@@ -15,6 +16,8 @@ async def origin_check(request, handler):
         return await handler(request)
     except Conflict as error:
         return web.json_response({"error": str(error)}, status=409)
+    except GrowthError as error:
+        return web.json_response({"error": str(error)}, status=400)
 
 
 async def payload(request):
@@ -77,6 +80,24 @@ def create_app(path):
     app = web.Application(middlewares=[origin_check], client_max_size=128 * 1024 * 1024)
     app["storage"] = Storage(path)
     app["github"] = GithubSync(app["storage"])
+    app["growth"] = Growth(app["storage"])
+
+    async def growth_state(request):
+        if request.method == "GET":
+            return web.json_response(await asyncio.to_thread(app["growth"].read), headers={"Cache-Control": "no-store"})
+        result = await asyncio.to_thread(app["growth"].run, await payload(request))
+        app["github"].schedule()
+        return web.json_response(result, headers={"Cache-Control": "no-store"})
+
+    async def growth_catalog(request):
+        return web.json_response(app["growth"].catalog())
+
+    async def growth_backup(request):
+        if request.method == "GET":
+            return web.json_response(await asyncio.to_thread(app["growth"].export), headers={"Cache-Control": "no-store"})
+        result = await asyncio.to_thread(app["growth"].restore, await payload(request))
+        app["github"].schedule()
+        return web.json_response(result)
 
     async def github_status(request):
         return web.json_response(request.app["github"].status())
@@ -102,7 +123,9 @@ def create_app(path):
     async def health(request):
         return web.json_response({"status": "ok"})
 
-    app.add_routes([web.get("/health", health), web.get("/state", state), web.post("/initialize", initialize), web.put("/state", update),
+    app.add_routes([web.get("/growth", growth_state), web.post("/growth", growth_state),
+                    web.get("/growth/catalog", growth_catalog), web.get("/growth/backup", growth_backup), web.post("/growth/backup", growth_backup),
+                    web.get("/health", health), web.get("/state", state), web.post("/initialize", initialize), web.put("/state", update),
                     web.get("/archives", archives), web.post("/archives", archives), web.get("/archives/{id:\\d+}", archive),
                     web.post("/restore", restore),
                     web.get("/github/status", github_status), web.post("/github/backup", github_backup),

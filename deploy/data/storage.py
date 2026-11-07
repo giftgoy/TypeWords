@@ -62,6 +62,8 @@ class Storage:
             current = self.snapshot(db)
             if store_id != current["id"]:
                 raise Conflict("存储实例已变化，请备份当前副本后重新载入。")
+            if "typewords-growth-v1" in changes and changes["typewords-growth-v1"] != current["entries"].get("typewords-growth-v1", {}).get("value"):
+                raise Conflict("成长证据需要由成长任务接口保存，不能被普通缓存覆盖。")
             for key in changes:
                 if revisions.get(key) != current["entries"].get(key, {}).get("revision", 0):
                     if current["entries"].get(key, {}).get("value") != changes[key]:

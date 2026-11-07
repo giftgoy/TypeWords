@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import GrowthOverview from '@/components/growth/GrowthOverview.vue'
+import { useGrowthStore } from '@/core/stores/growth'
 import { useBaseStore } from '@/core/stores/base.ts'
 import { useRouter } from 'vue-router'
 import {
@@ -227,6 +229,12 @@ async function init() {
 }
 
 async function startPractice(practiceMode: WordPracticeMode, resetCache: boolean = false): Promise<void> {
+  try {
+    const growth = useGrowthStore()
+    await growth.load()
+    await growth.ensurePlan(store.sdict, store.getIgnoreWordsSet())
+    if (!isSaveData) refreshStudyTask()
+  } catch { /* 日常练习仍可继续；成长验证由服务器确认间隔。 */ }
   if (unsupportedCacheVersion) {
     Toast.error('当前客户端无法读取这份练习缓存，请升级后再继续')
     return
@@ -578,6 +586,7 @@ onUnmounted(() => {
 
 <template>
   <BasePage class="study-page">
+    <GrowthOverview />
     <div class="card flex flex-wrap items-center justify-between gap-3" aria-label="学习入门">
       <div>
         <strong>按自己的节奏开始</strong>

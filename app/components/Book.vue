@@ -2,6 +2,8 @@
 import type { Dict } from '@/core/types'
 import { Checkbox, Progress } from '@/base'
 import { withAppBaseURL } from '@/core/utils/base-url'
+import { useGrowthStore, dictionaryGrowthId } from '@/core/stores/growth'
+import { DICT_MILESTONES } from '@/core/growth/presentation'
 
 interface IProps {
   item?: Partial<Dict>
@@ -23,6 +25,8 @@ const emit = defineEmits<{
   check: []
   click: []
 }>()
+const growth = useGrowthStore()
+const milestonePlan = $computed(() => growth.state.plans[dictionaryGrowthId(props.item || {})])
 
 const progress = $computed(() => {
   return Number(((props.item?.lastLearnIndex / props.item?.length) * 100).toFixed())
@@ -81,6 +85,9 @@ function handleClick(e: MouseEvent) {
       <div class="w-6/10 truncate">{{ item?.name }}</div>
       <div>{{ studyProgress }}{{ item?.length }}{{ quantifier }}</div>
     </div>
+    <div v-if="showProgress && milestonePlan" class="book-milestones" aria-label="词典五阶段进度">
+      <span v-for="n in DICT_MILESTONES" :key="n" :class="{ earned: milestonePlan.milestones.some(m => m.threshold === n) }">{{ n }}%</span>
+    </div>
   </div>
   <div v-else class="book" id="no-book" @click="handleClick">
     <div class="h-full center text-2xl">
@@ -90,6 +97,9 @@ function handleClick(e: MouseEvent) {
 </template>
 
 <style scoped lang="scss">
+.book-milestones { display: flex; justify-content: space-between; gap: 3px; margin-top: 6px; font-size: 10px; color: var(--color-sub-text); }
+.book-milestones .earned { color: #53744d; font-weight: 600; }
+:global(html.dark) .book-milestones .earned { color: #aec99f; }
 .book-selectable {
   &:hover {
     border-color: var(--color-input-border);

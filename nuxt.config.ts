@@ -66,6 +66,8 @@ export default defineNuxtConfig({
   // ssr: false,
   routeRules: {
     '/words': { ssr: false },
+    '/growth': { ssr: false },
+    '/growth/**': { ssr: false },
     '/articles': { ssr: false },
     '/setting': { ssr: false },
     '/book/nce1': { prerender: true },

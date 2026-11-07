@@ -16,7 +16,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
-SYNC_KEYS = ("typing-word-dict", "typing-word-setting")
+SYNC_KEYS = ("typing-word-dict", "typing-word-setting", "typewords-growth-v1")
 MAX_PAYLOAD_BYTES = 5 * 1024 * 1024
 CONFIG_FILE = os.environ.get("GITHUB_CONFIG_FILE", "/data/github.json")
 

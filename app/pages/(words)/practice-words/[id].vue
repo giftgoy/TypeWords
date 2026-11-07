@@ -16,6 +16,8 @@ import WordList from '@/components/list/WordList.vue'
 import TypeWord from '@/components/word/TypeWord.vue'
 import Empty from '@/components/Empty.vue'
 import { useBaseStore } from '@/core/stores/base.ts'
+import { useGrowthStore } from '@/core/stores/growth'
+import { normalizeWordKey } from '@/core/utils/simple-word-filter'
 import { usePracticeStore } from '@/core/stores/practice.ts'
 import { getDefaultDict, getDefaultWord } from '@/core/types/func.ts'
 import PracticeLayout from '@/components/PracticeLayout.vue'
@@ -355,6 +357,15 @@ async function complete() {
 
     try {
       session.settleLocalPractice()
+
+      try {
+        const excluded = new Set(data.excludeWords.map(normalizeWordKey))
+        const finished = [...taskWords.new, ...taskWords.review].map(w => w.word).filter(w => !excluded.has(normalizeWordKey(w)))
+        await useGrowthStore().settleDictionary(store.sdict, finished, `${store.sdict.id}:${statStore.startDate}`, store.getIgnoreWordsSet())
+      } catch (error) {
+        console.error('[growth] 词典里程碑待同步', error)
+        Toast.warning('学习结算已保留，词典里程碑将在连接恢复后同步')
+      }
 
       try {
         await dataSync.saveDictState(store.$state, { pullWhenRemoteNewer: false })
