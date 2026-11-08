@@ -18,7 +18,7 @@ import { getDefaultWord } from '@/core/types/func.ts'
 import { usePlayWordAudio } from '@/core/hooks/sound.ts'
 import { lookupWord } from '@/core/hooks/useWordLookup.ts'
 import { get, set, flushStorage, storageStatus, reloadSharedStorage, retrySharedStorage } from '@/core/utils/storage'
-import ReadingModelSettings from './ReadingModelSettings.vue'
+import AiModelStatus from './AiModelStatus.vue'
 import md5 from 'md5'
 import { lemmaCandidates } from '@/core/immersive/lemmatize.ts'
 
@@ -392,7 +392,7 @@ async function jumpToParagraph(index: number) {
       <NuxtLink to="/reading-studio">用目标词写短文</NuxtLink>
     </div>
     <p v-if="annotationSaveError" class="imm-message" role="status">{{ annotationSaveError }} <button v-if="storageStatus.phase === 'conflict'" type="button" @click="reloadSharedStorage">备份当前副本并载入服务器记录</button><button v-else type="button" @click="retrySharedStorage">重试保存</button></p>
-    <ReadingModelSettings />
+    <AiModelStatus />
     <ArticleDictionaryAnalysis :text="article.text" />
     <p v-if="analysisError" class="imm-message" role="alert">{{ analysisError }}</p>
     <div class="imm-head">

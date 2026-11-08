@@ -25,6 +25,7 @@ import FsrsSetting from '@/components/setting/FsrsSetting.vue'
 import ArticleSetting from '@/components/setting/ArticleSetting.vue'
 import WordSetting from '@/components/setting/WordSetting.vue'
 import SoundSetting from '@/components/setting/SoundSetting.vue'
+import AiSetting from '@/components/setting/AiSetting.vue'
 import { checkAndUpgradePracticeWordCache, PRACTICE_ARTICLE_CACHE, PRACTICE_WORD_CACHE } from '@/core/utils/cache'
 import { useDataSyncPersistence } from '@/core/composables/useDataSyncPersistence'
 import SettingItem from '@/components/setting/SettingItem.vue'
@@ -73,7 +74,7 @@ const gitLastCommitTime = ref(config?.public?.latestCommitTime)
 let editShortcutKey = $ref('')
 
 const disabledDefaultKeyboardEvent = $computed(() => {
-  return editShortcutKey && tabIndex === 7
+  return editShortcutKey && tabIndex === 8
 })
 
 // 监听编辑快捷键状态变化，自动聚焦输入框
@@ -456,7 +457,8 @@ let sbStatus = $ref(Supabase.getStatus())
 watch(
   () => tabIndex,
   () => {
-    if (tabIndex === 5) sbStatus = Supabase.getStatus()
+    // 数据同步页每次进入都刷新一次 Supabase 状态（标签序号见模板 tabs）
+    if (tabIndex === 7) sbStatus = Supabase.getStatus()
   }
 )
 
@@ -591,29 +593,33 @@ function disable360() {
               <span>{{ $t('article_settings') }}</span>
             </div>
             <div class="tab" :class="tabIndex === 4 && 'active'" @click="tabIndex = 4">
+              <IconFluentSparkle20Regular />
+              <span>AI 模型</span>
+            </div>
+            <div class="tab" :class="tabIndex === 5 && 'active'" @click="tabIndex = 5">
               <IconClarityVolumeUpLine />
               <span>{{ $t('sound_settings') }}</span>
             </div>
-            <div class="tab" :class="tabIndex === 5 && 'active'" @click="tabIndex = 5">
+            <div class="tab" :class="tabIndex === 6 && 'active'" @click="tabIndex = 6">
               <IconFluentDatabasePerson20Regular />
               <span>{{ $t('data_management') }}</span>
             </div>
 
-            <div class="tab" :class="tabIndex === 6 && 'active'" @click="tabIndex = 6">
+            <div class="tab" :class="tabIndex === 7 && 'active'" @click="tabIndex = 7">
               <IconFluentCloudSync20Regular />
               <span>{{ $t('data_sync') }}</span>
               <div class="red-point" v-if="runtimeStore.isError"></div>
             </div>
-            <div class="tab" :class="tabIndex === 7 && 'active'" @click="tabIndex = 7">
+            <div class="tab" :class="tabIndex === 8 && 'active'" @click="tabIndex = 8">
               <IconFluentKeyboardLayoutFloat20Regular />
               <span>{{ $t('shortcut_settings') }}</span>
             </div>
-            <div class="tab" :class="tabIndex === 8 && 'active'" @click="tabIndex = 8">
+            <div class="tab" :class="tabIndex === 9 && 'active'" @click="tabIndex = 9">
               <IconFluentTextBulletListSquare20Regular />
               <span>{{ $t('update_log') }}</span>
               <!--              <div class="red-point" v-if="runtimeStore.isNew"></div>-->
             </div>
-            <div class="tab" :class="tabIndex === 9 && 'active'" @click="tabIndex = 9">
+            <div class="tab" :class="tabIndex === 10 && 'active'" @click="tabIndex = 10">
               <IconFluentPerson20Regular />
               <span>{{ $t('about') }}</span>
             </div>
@@ -625,9 +631,10 @@ function disable360() {
           <FsrsSetting v-if="tabIndex === 1" />
           <WordSetting v-if="tabIndex === 2" />
           <ArticleSetting v-if="tabIndex === 3" />
-          <SoundSetting v-if="tabIndex === 4" />
+          <AiSetting v-if="tabIndex === 4" />
+          <SoundSetting v-if="tabIndex === 5" />
 
-          <div v-if="tabIndex === 5">
+          <div v-if="tabIndex === 6">
             <!--            导出数据-->
             <SettingItem
               :title="$t('export_data_title')"
@@ -668,7 +675,7 @@ function disable360() {
             </div>
           </div>
 
-          <div v-if="tabIndex === 6">
+          <div v-if="tabIndex === 7">
             <GithubBackupSetting />
             <p class="text-red font-bold">过时功能：由于经常同步失败，不再推荐继续使用，请等待官方同步功能</p>
             <!--          Supabase 设置  -->
@@ -726,7 +733,7 @@ function disable360() {
             </div>
           </div>
 
-          <div class="body" v-if="tabIndex === 7">
+          <div class="body" v-if="tabIndex === 8">
             <div class="row">
               <label class="main-title">{{ $t('function') }}</label>
               <div class="wrapper">{{ $t('shortcut_key') }}</div>
@@ -765,9 +772,9 @@ function disable360() {
           </div>
 
           <!--          日志-->
-          <Log v-if="tabIndex === 8" />
+          <Log v-if="tabIndex === 9" />
 
-          <div v-if="tabIndex === 9" class="center flex-col">
+          <div v-if="tabIndex === 10" class="center flex-col">
             <About />
             <div class="text-md color-gray mt-10">Build {{ gitLastCommitHash }} {{ gitLastCommitTime }}</div>
           </div>

@@ -365,7 +365,7 @@ useEvents([
       <div class="audio-recovery-actions">
         <button type="button" @click="playWord(WordPlayTrigger.Manual)">重试发音</button>
         <button v-if="effective.isWordMasked" type="button" @click="revealForAudioFailure">查看单词（不计错）</button>
-        <NuxtLink to="/setting?index=4">声音设置</NuxtLink>
+        <NuxtLink to="/setting?index=5">声音设置</NuxtLink>
       </div>
     </div>
     <p v-else-if="audioLoading && effective.isWordMasked" class="audio-loading" role="status">正在加载发音…</p>

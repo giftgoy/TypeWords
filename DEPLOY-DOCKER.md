@@ -34,6 +34,23 @@ docker build -t typewords:local .
 docker run -d --name typewords --restart unless-stopped -p 5567:80 typewords:local
 ```
 
+### 拉不到基础镜像时（直连 Docker Hub 超时）
+
+本机直连 `registry-1.docker.io` 会超时，`docker compose up --build` 会卡在 `load metadata` 报
+`connectex: A connection attempt failed`。把基础镜像从镜像站取回来、打上本地标签再构建即可：
+
+```powershell
+docker pull docker.m.daocloud.io/library/node:22-bookworm-slim
+docker tag  docker.m.daocloud.io/library/node:22-bookworm-slim node:22-bookworm-slim
+docker build -t typewords:local .          # 已在本地有 nginx:alpine，不用再拉
+docker compose up -d --no-build typewords  # 用新镜像重建网页容器
+```
+
+两点注意：
+
+- `docker compose up --build typewords` 会把依赖服务（tts / data / reading）的构建一起做，基础镜像拉不到就整体失败；只更新网页时用上面的 `docker build` + `--no-build` 更稳。
+- 只换网页镜像不会动 `typewords-data` / `typewords-feed` 卷，学习进度和每日文章都在。
+
 ---
 
 ## 2. 这套部署做了什么
@@ -131,6 +148,28 @@ node scripts/test-tts.mjs
 python -m unittest discover -s deploy/tts -p test_server.py -v
 docker compose logs --tail=30 tts
 ```
+
+### AI 模型与文章讲解
+
+模型和密钥统一在站点 **「设置 → AI 模型」** 里配置（全站唯一入口）：填 OpenAI 兼容的 `/chat/completions` 地址、模型名和服务商密钥；保存后点「测试连接」会真实请求一次 `/models`，用来确认地址、密钥和额度。
+
+- 密钥只写进 `typewords-reading` 容器的 `/data/reading.json`（卷 `typewords_typewords-reading`），不下发到浏览器、也不参与浏览器设置同步。
+- 所有 AI 功能共用这一份配置：阅读页的「AI 讲解」、每段右侧的「AI」逐段讲解、用目标词写短文、沉浸阅读的语境校准。
+- 讲解接口：`POST /api/reading/explain`，入参 `{text, mode: "article"|"paragraph"|"sentence", language: "zh"|"bilingual", title}`。服务端会丢弃模型编造的引文和词条，只保留能在原文里逐字找到的内容（引文用正则复核），单次上限 6000 字符。
+- 讲解语言（中文 / 中英对照）属于浏览器偏好，在「设置 → AI 模型 → 讲解语言」里切换。
+
+改了 `deploy/reading/` 之后的重建与验证：
+
+```powershell
+docker build -t typewords-reading:local ./deploy/reading
+docker compose up -d --no-build reading
+docker run --rm -v "$PWD/deploy/reading:/app" -w /app typewords-reading:local `
+  python -m unittest discover -p 'test_*.py' -v
+```
+
+> 拉基础镜像失败时同前：`docker pull docker.m.daocloud.io/library/python:3.12-slim`，
+> 再 `docker tag docker.m.daocloud.io/library/python:3.12-slim registry-1.docker.io/library/python:3.12-slim`
+> ——注意 reading 的 Dockerfile 里 FROM 写的是带 registry 的全名，标签必须打成全名才认。
 
 | 项目 | 做法 |
 | --- | --- |

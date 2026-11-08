@@ -96,7 +96,7 @@ function playTtsWithGuide(text: string, onEnd?: () => void) {
         action: {
           text: '设置',
           onClick: () => {
-            router.push('/setting?index=4')
+            router.push('/setting?index=5')
             ins.close()
           },
         },

@@ -21,6 +21,7 @@ export interface SettingState {
   readingHideSimpleAnnotations: boolean // 阅读时隐藏简单词和已掌握词的标注
   articleSoundVolume: number
   articleSoundSpeed: number
+  aiExplainLanguage: 'zh' | 'bilingual' // AI 讲解里中文说明的风格
 
   keyboardSound: boolean
   keyboardSoundVolume: number
@@ -98,6 +99,7 @@ export const getDefaultSettingState = (): SettingState => ({
   readingHideSimpleAnnotations: true,
   articleSoundVolume: 100,
   articleSoundSpeed: 1,
+  aiExplainLanguage: 'zh',
 
   keyboardSound: true,
   keyboardSoundVolume: 100,

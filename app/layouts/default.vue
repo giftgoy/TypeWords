@@ -115,6 +115,25 @@ onMounted(() => {
           </svg>
           <span>资源市场</span>
         </NuxtLink>
+        <NuxtLink to="/tech-tree" class="row" title="科技树" aria-label="科技树">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          >
+            <circle cx="12" cy="4" r="2" />
+            <circle cx="6" cy="13" r="2" />
+            <circle cx="18" cy="13" r="2" />
+            <circle cx="12" cy="20" r="2" />
+            <path d="M11 5.7 7 11.3M13 5.7l4 5.6M7 15v1.6h3.6M17 15v1.6h-3.6" />
+          </svg>
+          <span>科技树</span>
+        </NuxtLink>
         <NuxtLink to="/records" class="row" :title="$t('study_record')" :aria-label="$t('study_record')">
           <svg
             aria-hidden="true"
@@ -167,6 +186,25 @@ onMounted(() => {
           <IconFluentBookLetter20Regular />
           <span>{{ $t('articles') }}</span>
         </div>
+        <div class="nav-item" @click="router.push('/tech-tree')" :class="{ active: route.path === '/tech-tree' }">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          >
+            <circle cx="12" cy="4" r="2" />
+            <circle cx="6" cy="13" r="2" />
+            <circle cx="18" cy="13" r="2" />
+            <circle cx="12" cy="20" r="2" />
+            <path d="M11 5.7 7 11.3M13 5.7l4 5.6M7 15v1.6h3.6M17 15v1.6h-3.6" />
+          </svg>
+          <span>科技树</span>
+        </div>
         <div class="nav-item" @click="router.push('/setting')" :class="{ active: route.path === '/setting' }">
           <IconFluentSettings20Regular />
           <span>{{ $t('setting') }}</span>
@@ -192,7 +230,7 @@ onMounted(() => {
     <div class="flex-1 z-1 relative main-content overflow-x-hidden">
       <div
         class="mt-3 center relative z-9999 pointer-events-none"
-        @click="router.push('/setting?index=6 ')"
+        @click="router.push('/setting?index=7')"
         v-if="runtimeStore.isError"
       >
         <ToastComponent
@@ -235,6 +273,7 @@ onMounted(() => {
     </div>
     <WordCollectPopover />
     <LearningGuide />
+    <WordListeningPlayer />
   </div>
 </template>
 

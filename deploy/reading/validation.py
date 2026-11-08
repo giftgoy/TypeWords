@@ -54,3 +54,73 @@ def clean_result(result, targets=None):
         if not 3 <= len(phrases) <= 5 or len({(p["paragraph"], p["text"]) for p in phrases}) != len(phrases):
             raise ValueError("请生成 3–5 个值得背诵的搭配或句型。")
     return result
+
+
+def _flat(text):
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _quote_in_source(quote, source):
+    """模型必须逐字引用原文；改写或编造的条目直接丢弃，而不是让整次讲解失败。"""
+    if not isinstance(quote, str):
+        return ""
+    value = _flat(quote)
+    if not value or value.lower() not in source.lower():
+        return ""
+    return value
+
+
+def _term_in_source(term, source):
+    if not isinstance(term, str):
+        return ""
+    value = _flat(term)
+    if not value or not re.search(r"(?<![a-z])" + re.escape(value.lower()) + r"(?![a-z])", source.lower()):
+        return ""
+    return value
+
+
+def _text(value, limit=200):
+    if not isinstance(value, str):
+        return ""
+    return _flat(value)[:limit]
+
+
+def _text_list(value, limit=6):
+    if not isinstance(value, list):
+        return []
+    items = [_text(item) for item in value]
+    return [item for item in items if item][:limit]
+
+
+def clean_explain(result, source):
+    """讲解结果做宽松清洗：条目逐条校验，弃掉编造内容，但保留能用的部分。"""
+    if not isinstance(result, dict):
+        raise ValueError("模型没有返回可用的讲解，请重试。")
+    flat_source = _flat(source)
+    sentences = []
+    for item in result.get("sentences") or []:
+        if not isinstance(item, dict):
+            continue
+        quote = _quote_in_source(item.get("en"), flat_source)
+        if not quote:
+            continue
+        sentences.append({"en": quote, "cn": _text(item.get("cn"), 400), "note": _text(item.get("note"), 400)})
+    words = []
+    for item in result.get("words") or []:
+        if not isinstance(item, dict):
+            continue
+        term = _term_in_source(item.get("word"), flat_source)
+        if not term:
+            continue
+        words.append({"word": term, "meaning": _text(item.get("meaning"), 200), "usage": _text(item.get("usage"), 200)})
+    cleaned = {
+        "title": _text(result.get("title")),
+        "theme": _text(result.get("theme"), 400),
+        "summary": _text_list(result.get("summary"), 6),
+        "sentences": sentences[:40],
+        "words": words[:30],
+        "highlights": _text_list(result.get("highlights"), 5),
+    }
+    if not (cleaned["theme"] or cleaned["summary"] or cleaned["sentences"] or cleaned["words"]):
+        raise ValueError("模型没有返回可用的讲解，请重试。")
+    return cleaned

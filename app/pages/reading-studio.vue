@@ -9,7 +9,7 @@ import { genArticleSectionData } from '@/core/hooks/article.ts'
 import { useBaseStore } from '@/core/stores/base.ts'
 import { DictType } from '@/core/types/enum.ts'
 import type { Word, Article } from '@/core/types/types.ts'
-import ReadingModelSettings from '@/components/article/ReadingModelSettings.vue'
+import AiModelStatus from '@/components/article/AiModelStatus.vue'
 import { phraseTokenIndexes } from '@/core/immersive/phrases.ts'
 import { nanoid } from 'nanoid'
 
@@ -90,7 +90,7 @@ function download() {
     <NuxtLink to="/articles">返回文章</NuxtLink>
     <h1>用单词写一篇值得背诵的短文</h1>
     <p>选一组目标词，生成 120–180 词、B1–B2 难度的连贯短文，附自然翻译、语境释义与实用搭配。</p>
-    <ReadingModelSettings />
+    <AiModelStatus />
     <form @submit.prevent="generate">
       <label>从词库选词<select v-model="source" @change="changeSource"><option value="">手动输入目标词</option><option v-for="item in sources" :key="item.key" :value="item.key">{{ item.name }}</option></select></label>
       <div v-if="source" class="source-words">
