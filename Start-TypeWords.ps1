@@ -42,4 +42,19 @@ if ($LASTEXITCODE -ne 0) { throw 'TypeWords failed to start. Check docker compos
 $response = Invoke-WebRequest -Uri "$url/api/data/health" -UseBasicParsing -TimeoutSec 10
 if ($response.StatusCode -ne 200) { throw 'TypeWords data service is not ready.' }
 Write-Output "TypeWords is running in Docker at $url."
+
+# 网页端口已经绑定 0.0.0.0，同一局域网的平板/手机可以走下面这些地址
+$virtualAdapters = 'vEthernet|WSL|Default Switch|Loopback|Virtual|Bluetooth'
+$lanAddresses = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+    Where-Object {
+        $_.IPAddress -notlike '127.*' -and
+        $_.IPAddress -notlike '169.254.*' -and
+        $_.InterfaceAlias -notmatch $virtualAdapters
+    } |
+    ForEach-Object { '  http://' + $_.IPAddress + ':5567' }
+if ($lanAddresses) {
+    Write-Output 'Same Wi-Fi (LAN) access for tablet / phone:'
+    $lanAddresses | ForEach-Object { Write-Output $_ }
+}
+
 if (-not $NoBrowser) { Start-Process -FilePath $url }

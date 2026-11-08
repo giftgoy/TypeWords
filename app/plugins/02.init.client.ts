@@ -3,13 +3,19 @@ import VueVirtualScroller from 'vue-virtual-scroller'
 import { ENV } from '@/core/config/env.ts'
 import { withAppBaseURL } from '@/core/utils/base-url'
 
+// 本地/内网部署不加载外部统计脚本（t.js 会再拉 51.la、百度统计、umami）
+function isLocalHost() {
+  const hostname = location.hostname
+  return (
+    ['localhost', '127.0.0.1', '::1', '[::1]', '0.0.0.0'].includes(hostname) ||
+    hostname.startsWith('192.168.') ||
+    hostname.startsWith('10.') ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
+  )
+}
+
 export default defineNuxtPlugin(async nuxtApp => {
-  if (
-    !location.href.includes('localhost') &&
-    !location.href.includes('192.168') &&
-    !location.href.includes('172.16') &&
-    !location.href.includes('10.0')
-  ) {
+  if (!isLocalHost()) {
     ;(function () {
       var t = document.createElement('script')
       t.src = ENV.LIBS_URL + 't.js?t=' + Date.now()

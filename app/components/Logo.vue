@@ -1,19 +1,18 @@
 <script setup lang="ts">
 import { useSettingStore } from '@/core/stores/setting.ts'
-import { useRouter } from 'vue-router'
-import { IS_DEV } from '@/core/config/env'
+import { useRouter, useRoute } from 'vue-router'
 import { withAppBaseURL } from '@/core/utils/base-url'
 
 const settingStore = useSettingStore()
 const router = useRouter()
+const route = useRoute()
 const darkLogoSrc = withAppBaseURL('/imgs/logo/logo-text-black.png')
 const lightLogoSrc = withAppBaseURL('/imgs/logo/logo-text-white.png')
 
+// 本地部署：点击 Logo 只在站内返回首页，不再跳转到外部站点
 function goHome() {
-  if (IS_DEV) {
+  if (route.path !== '/') {
     router.push('/')
-  } else {
-    location.href = window.atob('aHR0cHM6Ly90eXBld29yZHMuY2M=')
   }
 }
 </script>

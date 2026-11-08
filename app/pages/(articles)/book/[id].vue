@@ -96,7 +96,8 @@ async function startPractice() {
     complete: sbook.complete,
     s: `name:${sbook.name},index:${sbook.lastLearnIndex},title:${sbook.articles[sbook.lastLearnIndex].title}`,
   })
-  nav('/practice-articles/' + sbook.id)
+  const chapterIndex = sbook.articles.findIndex((item: Article) => String(item.id) === String(selectArticle.id))
+  nav(`/read/${sbook.id}?chapter=${chapterIndex >= 0 ? chapterIndex : sbook.lastLearnIndex || 0}`)
 }
 
 const showBookDetail = computed(() => {

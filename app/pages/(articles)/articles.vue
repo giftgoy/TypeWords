@@ -114,7 +114,7 @@ function startStudy() {
       complete: base.sbook.complete,
       s: `name:${base.sbook.name},index:${base.sbook.lastLearnIndex},title:${base.sbook.articles[base.sbook.lastLearnIndex].title}`,
     })
-    nav('/practice-articles/' + store.sbook.id)
+    nav('/read/' + store.sbook.id + '?chapter=' + (store.sbook.lastLearnIndex || 0))
   } else {
     window.umami?.track('no-book')
     Toast.warning('请先选择一本书籍')
@@ -152,8 +152,8 @@ function toggleSelect(item) {
 
 async function goBookDetail(val: DictResource) {
   runtimeStore.editDict = getDefaultDict(val)
-  // nav('book',{id: val.id})
-  nav('/book/' + val.id)
+  // 点书直接进沉浸阅读，不再经过书籍详情页
+  nav('/read/' + val.id)
 }
 
 const totalSpend = $computed(() => {
@@ -240,6 +240,7 @@ const { data: recommendBookList, isFetching } = useFetch(resourceWrap(DICT_LIST.
             </div>
           </div>
           <div class="flex gap-4 items-center" v-opacity="base.sbook.id">
+            <div class="color-link cursor-pointer" @click="router.push('/syntax-reader')">语法精读</div>
             <div class="color-link cursor-pointer" @click="router.push('/book-list')">{{ $t('change_book') }}</div>
           </div>
         </div>

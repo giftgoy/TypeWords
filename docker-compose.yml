@@ -9,7 +9,8 @@ services:
     image: typewords:local
     container_name: typewords
     ports:
-      - "127.0.0.1:5567:80"
+      # 0.0.0.0 才能让同一局域网的平板/手机访问；Windows 防火墙只放行“专用网络 + 本地子网”
+      - "0.0.0.0:5567:80"
     restart: unless-stopped
     depends_on:
       tts:
