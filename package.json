@@ -10,6 +10,7 @@
     "i18n:write": "gulp i18nWrite",
     "test": "node --test tests/*.test.mjs",
     "resources:prepare": "node scripts/prepare-market.mjs",
+    "chunks:prepare": "node scripts/prepare-chunk-dict.mjs",
     "examples:prepare": "node scripts/prepare-word-examples.mjs",
     "gloss:build": "node scripts/prepare-gloss-index.mjs && node scripts/prepare-reading-gloss.mjs"
   },
