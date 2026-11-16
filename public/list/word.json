@@ -331,7 +331,7 @@
   {
     "id": "market-en-chunks-300",
     "enName": "market-en-chunks-300",
-    "name": "英语词块 · 精编 300",
+    "name": "英语词块 · 精编",
     "description": "高频词块与固定搭配,把短语当作一个整体记忆单元,跟写与听写均支持带空格的词块。",
     "category": "词块搭配",
     "icon": "CK",
@@ -341,7 +341,7 @@
       "搭配"
     ],
     "url": "market-en-chunks-300.json",
-    "length": 300,
+    "length": 600,
     "type": "word",
     "language": "en",
     "translateLanguage": "zh-CN",
