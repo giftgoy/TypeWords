@@ -3,7 +3,9 @@ import { computed, onMounted } from 'vue'
 import { useListeningStore } from '@/core/stores/listening.ts'
 import { useBaseStore } from '@/core/stores/base.ts'
 import { useWordListening } from '@/core/word/useWordListening.ts'
+import { useWordOptions } from '@/core/hooks/dict.ts'
 import type { ListeningOrder, ListeningScope } from '@/core/word/listening-queue.ts'
+import type { Word } from '@/core/types/types.ts'
 
 /**
  * 磨耳朵播放器：挂在全局 layout 上，切换页面也不中断。
@@ -13,6 +15,7 @@ import type { ListeningOrder, ListeningScope } from '@/core/word/listening-queue
 const listening = useListeningStore()
 const base = useBaseStore()
 const player = useWordListening()
+const wordOptions = useWordOptions()
 
 onMounted(() => {
   listening.restoreOptions()
@@ -28,13 +31,23 @@ const SCOPES: { value: ListeningScope; label: string }[] = [
 const ORDERS: { value: ListeningOrder; label: string }[] = [
   { value: 'sequence', label: '顺序' },
   { value: 'random', label: '随机' },
+  { value: 'new', label: '未学' },
+  { value: 'due', label: '待复习' },
 ]
 const PAUSES = [0, 1, 2, 3, 5]
 const RATES = [0.6, 0.8, 1, 1.2, 1.5]
 
 const current = computed(() => listening.current)
 const stageLabel = computed(
-  () => ({ idle: '待开始', word: '读单词', meaning: '读释义', example: '读例句', gap: '停顿' })[listening.stage]
+  () =>
+    ({
+      idle: '待开始',
+      word: '读单词',
+      meaning: '读释义',
+      example: '读例句',
+      chunk: '读词块',
+      gap: '停顿',
+    })[listening.stage]
 )
 /** 范围下拉里带上词数，用户一眼能看出该听哪个 */
 const scopeCounts = computed<Record<ListeningScope, number>>(() => ({
@@ -48,6 +61,42 @@ const maskedWord = computed(() => {
   const length = Math.min(12, Math.max(3, current.value?.word.length ?? 4))
   return '·'.repeat(length)
 })
+/** 当前正在朗读的词块（引擎读到词块阶段才有值），盲听时整块隐藏 */
+const chunk = computed(() => listening.currentChunk ?? null)
+const showChunk = computed(() => !!chunk.value || listening.stage === 'chunk')
+/**
+ * 队列条目只有单词字符串，收藏/我熟要操作 Word 对象：
+ * 按当前范围在对应词表里小写不敏感地找，找不到就禁用按钮。
+ */
+const currentWordObj = computed<Word | null>(() => {
+  const word = current.value?.word
+  if (!word) return null
+  const key = word.toLowerCase()
+  const scope = listening.options.scope
+  const words =
+    scope === 'collect'
+      ? base.collectWord.words
+      : scope === 'wrong'
+        ? base.wrong.words
+        : scope === 'known'
+          ? base.known.words
+          : base.sdict.words
+  return words?.find(item => item.word.toLowerCase() === key) ?? null
+})
+const isCollected = computed(() => !!currentWordObj.value && wordOptions.isWordCollect(currentWordObj.value))
+const isKnown = computed(() => !!currentWordObj.value && wordOptions.isWordSimple(currentWordObj.value))
+
+function toggleCollect() {
+  if (!currentWordObj.value) return
+  wordOptions.toggleWordCollect(currentWordObj.value)
+}
+
+/** 标记为已掌握后跳到下一个词，播放节奏不中断（known 范围下点击即移出，toggle 本来就是这个语义） */
+function markKnownAndNext() {
+  if (!currentWordObj.value) return
+  wordOptions.toggleWordSimple(currentWordObj.value)
+  player.next()
+}
 
 function changeScope(event: Event) {
   listening.setOptions({ scope: (event.target as HTMLSelectElement).value as ListeningScope })
@@ -98,6 +147,16 @@ function changeRate(event: Event) {
         </div>
         <p v-if="current?.meaning" class="listening__meaning">{{ current.meaning }}</p>
         <p v-if="current?.example && !listening.options.blind" class="listening__example">{{ current.example }}</p>
+        <!-- 词块：读完例句后引擎会接着读相关词块，正在读时高亮；盲听时与例句一样整块隐藏 -->
+        <div
+          v-if="showChunk && !listening.options.blind"
+          class="listening__chunk"
+          :class="{ 'is-active': listening.stage === 'chunk' }"
+        >
+          <span class="listening__chunk-label">词块</span>
+          <p class="listening__chunk-text">{{ chunk?.word || '—' }}</p>
+          <p v-if="chunk?.cn" class="listening__chunk-cn">{{ chunk.cn }}</p>
+        </div>
         <p v-if="listening.message" class="listening__message" role="status">{{ listening.message }}</p>
       </div>
 
@@ -117,6 +176,32 @@ function changeRate(event: Event) {
         </button>
         <button type="button" class="listening__step" aria-label="下一个单词" :disabled="!listening.items.length" @click="player.next()">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5h2v14h-2z" /><path d="M5 5.6v12.8a1 1 0 0 0 1.53.85L15 13.7a1 1 0 0 0 0-1.7L6.53 6.45A1 1 0 0 0 5 5.6Z" /></svg>
+        </button>
+        <!-- 收藏：当前词已在收藏名单时点亮；找不到 Word 对象就禁用 -->
+        <button
+          type="button"
+          class="listening__step listening__action"
+          :class="{ 'is-active': isCollected }"
+          aria-label="收藏当前单词"
+          :aria-pressed="isCollected"
+          :disabled="!currentWordObj"
+          @click="toggleCollect"
+        >
+          <IconFluentStar16Filled v-if="isCollected" aria-hidden="true" />
+          <IconFluentStar16Regular v-else aria-hidden="true" />
+        </button>
+        <!-- 我熟：标记为已掌握并自动跳到下一个词继续听 -->
+        <button
+          type="button"
+          class="listening__step listening__action"
+          :class="{ 'is-active': isKnown }"
+          aria-label="标记为已掌握并跳到下一个"
+          :aria-pressed="isKnown"
+          :disabled="!currentWordObj"
+          @click="markKnownAndNext"
+        >
+          <IconFluentCheckmarkCircle16Filled v-if="isKnown" aria-hidden="true" />
+          <IconFluentCheckmarkCircle16Regular v-else aria-hidden="true" />
         </button>
         <span class="listening__count">
           {{ listening.items.length ? listening.index + 1 : 0 }} / {{ listening.items.length }}
@@ -173,6 +258,22 @@ function changeRate(event: Event) {
         <label>
           <input
             type="checkbox"
+            :checked="listening.options.readChunk"
+            @change="listening.setOptions({ readChunk: ($event.target as HTMLInputElement).checked })"
+          />
+          读词块
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            :checked="listening.options.rotateExample"
+            @change="listening.setOptions({ rotateExample: ($event.target as HTMLInputElement).checked })"
+          />
+          例句轮换
+        </label>
+        <label>
+          <input
+            type="checkbox"
             :checked="listening.options.blind"
             @change="listening.setOptions({ blind: ($event.target as HTMLInputElement).checked })"
           />
@@ -180,7 +281,7 @@ function changeRate(event: Event) {
         </label>
       </div>
 
-      <p class="listening__hint">音量与音色沿用「设置 → 音效设置」里的单词音量；切页面不会中断播放。</p>
+      <p class="listening__hint">音量与音色沿用「设置 → 音效设置」里的单词音量；切页面不会中断播放。中文释义音色取决于浏览器；例句与词块会使用设置里选择的 TTS 音色。</p>
     </section>
   </div>
 </template>
@@ -359,6 +460,46 @@ function changeRate(event: Event) {
   color: var(--color-sub-text);
 }
 
+.listening__chunk {
+  margin-top: 0.35rem;
+  padding: 0.35rem 0.55rem;
+  border-left: 3px solid var(--color-line);
+  border-radius: 0.35rem;
+  background: var(--color-card-bg);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+
+  &.is-active {
+    border-left-color: var(--color-select-bg);
+    background: var(--color-card-active);
+
+    .listening__chunk-label {
+      color: var(--color-select-bg);
+    }
+  }
+}
+
+.listening__chunk-label {
+  font-size: 0.64rem;
+  color: var(--color-sub-text);
+}
+
+.listening__chunk-text {
+  margin-top: 0.2rem;
+  font-family: var(--en-article-family);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--color-main-text);
+}
+
+.listening__chunk-cn {
+  margin-top: 0.15rem;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--color-sub-text);
+}
+
 .listening__message {
   margin-top: 0.3rem;
   font-size: 0.78rem;
@@ -393,6 +534,13 @@ function changeRate(event: Event) {
     opacity: 0.45;
     cursor: not-allowed;
   }
+}
+
+/** 收藏/我熟小按钮：沿用 .listening__step 的小方样式，激活态用选中色点亮 */
+.listening__action.is-active {
+  border-color: var(--color-select-bg);
+  background: var(--color-select-bg);
+  color: #fff;
 }
 
 .listening__play {
