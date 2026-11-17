@@ -95,10 +95,11 @@ const exampleText = ref('How are you? I am fine, thank you. And you?')
 const previewActive = computed(() => previewState.value === 'loading' || previewState.value === 'playing')
 
 function voiceLabel(voice: OnlineTtsVoice) {
+  const accent = voice.lang.startsWith('zh') ? '中文' : t(voice.lang === 'en-GB' ? 'uk_accent' : 'us_accent')
   return (
     voice.name +
     ' · ' +
-    t(voice.lang === 'en-GB' ? 'uk_accent' : 'us_accent') +
+    accent +
     ' · ' +
     t(voice.gender === 'female' ? 'tts_female' : 'tts_male')
   )

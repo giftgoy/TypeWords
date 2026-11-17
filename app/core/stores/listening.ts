@@ -11,8 +11,12 @@ export interface ListeningOptions {
   order: ListeningOrder
   /** 读完单词后读中文释义 */
   readMeaning: boolean
-  /** 读第一条例句 */
+  /** 读例句（rotateExample 关闭时恒读第一句） */
   readExample: boolean
+  /** 读完例句后读一条包含当前单词的词块 */
+  readChunk: boolean
+  /** 例句按轮次轮换，每轮换下一条 */
+  rotateExample: boolean
   /** 每个词之间的停顿（秒） */
   pauseSeconds: number
   /** 语速倍率 */
@@ -21,7 +25,7 @@ export interface ListeningOptions {
   blind: boolean
 }
 
-export type ListeningStage = 'idle' | 'word' | 'meaning' | 'example' | 'gap'
+export type ListeningStage = 'idle' | 'word' | 'meaning' | 'example' | 'chunk' | 'gap'
 
 export interface ListeningState {
   items: ListeningItem[]
@@ -32,6 +36,12 @@ export interface ListeningState {
   stage: ListeningStage
   options: ListeningOptions
   message: string
+  /** 当前朗读的词块（词块朗读时给界面展示），没有就是 null */
+  currentChunk: { word: string; cn: string } | null
+  /** 例句/词块的轮次计数，驱动下一次轮换 */
+  rotation: number
+  /** 随机排序的固定种子，0 表示未初始化 */
+  queueSeed: number
 }
 
 const OPTIONS_KEY = 'typewords:listening-options'
@@ -41,6 +51,8 @@ export const getDefaultListeningOptions = (): ListeningOptions => ({
   order: 'sequence',
   readMeaning: true,
   readExample: false,
+  readChunk: false,
+  rotateExample: false,
   pauseSeconds: 2,
   rate: 1,
   blind: false,
@@ -77,6 +89,9 @@ export const useListeningStore = defineStore('listening', {
     stage: 'idle',
     options: getDefaultListeningOptions(),
     message: '',
+    currentChunk: null,
+    rotation: 0,
+    queueSeed: 0,
   }),
   getters: {
     current(state): ListeningItem | null {
@@ -122,6 +137,21 @@ export const useListeningStore = defineStore('listening', {
     },
     setMessage(message: string) {
       this.message = message
+    },
+    /** 记录当前正在朗读的词块（界面展示用），null 表示这一轮没有词块 */
+    setCurrentChunk(chunk: { word: string; cn: string } | null) {
+      this.currentChunk = chunk
+    },
+    /** 例句/词块读完一轮就 +1，驱动下一次轮换 */
+    setRotation(n: number) {
+      this.rotation = n
+    },
+    /** 随机排序种子：整个会话固定一个，重建队列时顺序不再乱跳 */
+    ensureQueueSeed(): number {
+      if (!this.queueSeed) {
+        this.queueSeed = (Date.now() % 2147483647) + 1
+      }
+      return this.queueSeed
     },
     toggleExpanded(expanded?: boolean) {
       this.expanded = expanded ?? !this.expanded

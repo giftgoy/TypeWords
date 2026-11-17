@@ -1,9 +1,9 @@
 """TypeWords 本地 TTS：kokoro（sherpa-onnx 离线推理）。
 
-对外保持原 edge-tts 服务的 HTTP 契约（/health /voices /speak），
-但 /voices 只列出英文音色（设置页下拉用），/speak 的 voice 参数
-接受本地 voices.bin 里的全部音色——中文音色（zf_* / zm_*）供
-磨耳朵读释义等内部调用，不进下拉列表。
+对外保持原 edge-tts 服务的 HTTP 契约（/health /voices /speak）。
+/voices 列出英文 3 音色 + 中文 2 音色（设置页下拉与磨耳朵统一
+管线按 lang 挑音色用），/speak 的 voice 参数接受本地 voices.bin
+里的全部音色（zf_* / zm_* 全量仍可直呼）。
 """
 
 import asyncio
@@ -26,11 +26,14 @@ ZM = "zm_009 zm_010 zm_011 zm_012 zm_013 zm_014 zm_015 zm_016 zm_020 zm_025 zm_0
 SPEAKERS = ZB + ZF + ZM
 SPEAKER2ID = {name: i for i, name in enumerate(SPEAKERS)}
 
-# 对外可见的英文音色；id 与 voices.bin 里的名字一致
+# 对外可见的音色；id 与 voices.bin 里的名字一致。
+# 中文音色：磨耳朵统一 TTS 管线按 lang=zh-CN 挑女声读释义，必须对外可见。
 PUBLIC_VOICES = [
     {"id": "af_maple", "name": "Maple", "lang": "en-US", "gender": "female"},
     {"id": "af_sol", "name": "Sol", "lang": "en-US", "gender": "female"},
     {"id": "bf_vale", "name": "Vale", "lang": "en-GB", "gender": "female"},
+    {"id": "zf_001", "name": "中文女声", "lang": "zh-CN", "gender": "female"},
+    {"id": "zm_009", "name": "中文男声", "lang": "zh-CN", "gender": "male"},
 ]
 
 DEFAULT_VOICE = "af_maple"

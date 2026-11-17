@@ -6,7 +6,11 @@ import type { Word } from '../types/types.ts'
  */
 
 export type ListeningScope = 'current' | 'collect' | 'wrong' | 'known'
-export type ListeningOrder = 'sequence' | 'random'
+/**
+ * 排序方式：'new'（只听未学）/'due'（只听到期）在这里按顺序排，
+ * 真正的「按学习状态过滤」由播放引擎（useWordListening）负责。
+ */
+export type ListeningOrder = 'sequence' | 'random' | 'new' | 'due'
 
 export interface ListeningItem {
   word: string
@@ -15,7 +19,9 @@ export interface ListeningItem {
   meaning: string
   /** 朗读用的短释义：只取最常用的那条，磨耳朵不需要把整本词典念完 */
   spoken: string
-  /** 第一条例句（英文），没有就是空串 */
+  /** 全部英文例句（trim 后非空的才收，单条超长截断），播放引擎按轮次挑一条读 */
+  examples: string[]
+  /** 第一条例句（英文），恒等于 examples[0]，没有就是空串（兼容现有界面显示） */
   example: string
   exampleCn: string
 }
@@ -23,6 +29,8 @@ export interface ListeningItem {
 /** 释义最多读这么多字符，超过就截断，磨耳朵要的是节奏而不是完整释义 */
 const MEANING_LIMIT = 140
 const SPOKEN_LIMIT = 40
+/** 单条例句最多读这么长，太长的句子磨耳朵念起来节奏就没了 */
+const EXAMPLE_LIMIT = 200
 
 export function toListeningItem(source: Word | null | undefined): ListeningItem | null {
   const word = (source?.word ?? '').trim()
@@ -41,14 +49,21 @@ export function toListeningItem(source: Word | null | undefined): ListeningItem 
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, SPOKEN_LIMIT)
-  const sentence = source?.sentences?.[0]
+  // 例句收全部：每条 trim 后非空才收，超长截断；example 恒取第一条，兼容现有界面显示
+  const examples: string[] = []
+  for (const sentence of source?.sentences ?? []) {
+    const text = (sentence?.c ?? '').trim()
+    if (!text) continue
+    examples.push(text.length > EXAMPLE_LIMIT ? text.slice(0, EXAMPLE_LIMIT) : text)
+  }
   return {
     word,
     phonetic: (source?.phonetic0 || source?.phonetic1 || '').trim(),
     meaning,
     spoken,
-    example: (sentence?.c ?? '').trim(),
-    exampleCn: (sentence?.cn ?? '').trim(),
+    examples,
+    example: examples[0] ?? '',
+    exampleCn: (source?.sentences?.[0]?.cn ?? '').trim(),
   }
 }
 
@@ -70,7 +85,10 @@ export function seededShuffle<T>(items: T[], seed: number): T[] {
   return output
 }
 
-/** 词表 → 队列：按小写单词去重，丢弃没有释义也没有例句的空词条 */
+/**
+ * 词表 → 队列：按小写单词去重，丢弃没有释义也没有例句的空词条。
+ * 只有 'sequence'/'random' 影响排序；'new'/'due' 在这里按顺序排，过滤在引擎层做。
+ */
 export function buildListeningQueue(words: Word[], order: ListeningOrder = 'sequence', seed = 1): ListeningItem[] {
   const seen = new Set<string>()
   const items: ListeningItem[] = []

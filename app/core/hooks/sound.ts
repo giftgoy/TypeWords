@@ -413,13 +413,18 @@ export function useTTsPlayAudio() {
     // 本地 kokoro TTS：选过音色（kokoro: 前缀）按用户选择播；
     // 旧版 edge: 前缀的历史选择按「未设置」处理（音色 id 已随引擎切换）。
     // 自动模式按 accent（us/uk）+ 女声优先取在线音色。
+    // 中文文本（如磨耳朵释义）：选的是英文音色时改挑中文音色，别让英文音色硬念中文。
     if (rawSelected && !rawSelected.startsWith('kokoro:')) return playSystem()
     const onlineVoices = await getOnlineTtsVoices()
     if (generation !== ttsPlaybackGeneration) return
+    const picked = rawSelected.startsWith('kokoro:')
+      ? onlineVoices.find(v => v.id === rawSelected.slice('kokoro:'.length))
+      : undefined
     const voice =
-      (rawSelected.startsWith('kokoro:')
-        ? onlineVoices.find(v => v.id === rawSelected.slice('kokoro:'.length))
+      (resolved.lang.startsWith('zh') && picked && !picked.lang.startsWith('zh')
+        ? onlineVoices.find(v => v.lang.startsWith('zh') && v.gender === 'female')
         : undefined) ??
+      picked ??
       onlineVoices.find(v => v.lang === resolved.lang && v.gender === 'female')
     if (!voice) return playSystem()
     const query = new URLSearchParams({ text, voice: voice.id })

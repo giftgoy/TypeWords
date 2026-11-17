@@ -19,13 +19,14 @@ const word = (overrides = {}) => ({
   ...overrides,
 })
 
-test('词条转换：拼释义、取音标和第一条例句', () => {
+test('词条转换：拼释义、取音标和例句（examples 含全部例句，example 恒为第一条）', () => {
   const item = toListeningItem(word())
   assert.deepEqual(item, {
     word: 'neighbourhood',
     phonetic: 'ˈneɪbəhʊd',
     meaning: 'n. 街区；邻里；adj. 邻近的',
     spoken: '街区',
+    examples: ['A comfortable neighbourhood.'],
     example: 'A comfortable neighbourhood.',
     exampleCn: '一个舒适的街区。',
   })

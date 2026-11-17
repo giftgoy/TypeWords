@@ -8,6 +8,7 @@
  * - 例句列表（ClickableEnglishText + VolumeIcon 只读展示）
  * - 短语列表
  * - 近义词 / 词源 / 关联词
+ * - 词块联动(本地词块词典反查)
  */
 import type { Word } from '@/core/types/types.ts'
 import { getDefaultWord } from '@/core/types/func.ts'
@@ -27,6 +28,7 @@ import { watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTTsPlayAudio } from '@/core/hooks/sound.ts'
 import { exampleSourceUrl } from '@/core/utils/word-examples'
+import { chunkTransCn, getChunksForWord } from '@/core/word/chunk-links'
 
 const { t: $t } = useI18n()
 
@@ -142,6 +144,17 @@ function startPracticeSentence() {
   activeSentenceIndex = 0
 }
 
+// 词块联动(方案 B):当前单词命中的本地精选词块
+let chunkLinks = $ref<Word[]>([])
+watch(
+  () => props.word.word,
+  async word => {
+    const list = await getChunksForWord(word)
+    if (word === props.word.word) chunkLinks = list
+  },
+  { immediate: true }
+)
+
 defineExpose({ startPracticeSentence, playSentence })
 </script>
 
@@ -211,6 +224,27 @@ defineExpose({ startPracticeSentence, playSentence })
               </div>
               <div class="anim" v-opacity="showTranslation">
                 {{ item.cn }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- 词块联动 -->
+    <template v-if="chunkLinks.length">
+      <div v-opacity="showDetails">
+        <div class="line-white my-2"></div>
+        <div class="flex">
+          <div class="label">词块</div>
+          <div class="flex flex-col">
+            <div class="flex items-center gap-4" v-for="item in chunkLinks" :key="item.word">
+              <div class="flex gap-space items-center">
+                <ClickableEnglishText class="en" :text="item.word" :word="word.word" :dictation="effective.isWordMasked" />
+                <VolumeIcon :simple="false" title="发音" @click.stop="() => playTtsWithGuide(item.word)" />
+              </div>
+              <div class="anim" v-opacity="showTranslation">
+                {{ chunkTransCn(item) }}
               </div>
             </div>
           </div>

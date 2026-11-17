@@ -42,13 +42,19 @@ class KokoroApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body["status"], "ok")
         self.assertEqual(body["engine"], "kokoro")
 
-    async def test_voices_list_english_only(self):
+    async def test_voices_lists_english_and_chinese(self):
         response = await self.client.get("/voices")
         self.assertEqual(response.status, 200)
         voices = await response.json()
-        self.assertEqual([v["id"] for v in voices], ["af_maple", "af_sol", "bf_vale"])
+        self.assertEqual(
+            [v["id"] for v in voices],
+            ["af_maple", "af_sol", "bf_vale", "zf_001", "zm_009"],
+        )
         self.assertEqual(voices[0]["lang"], "en-US")
         self.assertEqual(voices[0]["gender"], "female")
+        zh = [v for v in voices if v["lang"] == "zh-CN"]
+        self.assertEqual([v["id"] for v in zh], ["zf_001", "zm_009"])
+        self.assertEqual(zh[0]["gender"], "female")
 
     async def test_rejects_invalid_requests_before_synthesis(self):
         server.cache.clear()
@@ -95,7 +101,7 @@ class KokoroApiTests(unittest.IsolatedAsyncioTestCase):
             response = await self.client.get("/speak", params={"text": "hello"})
             self.assertEqual(response.status, 502)
 
-    async def test_chinese_voices_accepted_but_not_listed(self):
+    async def test_chinese_voices_accepted_in_speak(self):
         server.cache.clear()
         mock_tts = Mock()
         mock_tts.generate.return_value = FakeAudio()
@@ -103,6 +109,10 @@ class KokoroApiTests(unittest.IsolatedAsyncioTestCase):
             response = await self.client.get("/speak", params={"text": "你好", "voice": "zf_001"})
             self.assertEqual(response.status, 200)
             mock_tts.generate.assert_called_once_with("你好", sid=3, speed=1.0)
+
+            response = await self.client.get("/speak", params={"text": "在", "voice": "zm_009"})
+            self.assertEqual(response.status, 200)
+            mock_tts.generate.assert_called_with("在", sid=58, speed=1.0)
 
 
 if __name__ == "__main__":
