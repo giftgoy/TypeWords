@@ -17,7 +17,7 @@
 官方说明：https://opencode.ai/docs/go/ 。Go主要面向编程代理流量；应用使用真实标识TypeWords-Reading/1.0，不伪装其他客户端。服务拒绝时显示状态码，可更换兼容服务。
 
 启动后端：`docker compose up -d --build reading`。此命令只更新阅读后端；前端Docker需要另行构建typewords。
-开发端 `/api/reading/` 代理到本机5568，TTS代理到现有Docker前端5567；Docker内nginx直接代理reading和tts服务。
+开发端 `/api/reading/` 代理到本机5568，TTS代理到本地 kokoro 服务 127.0.0.1:7021（devProxy 不剥路径，tts 服务提供 `/api/tts/*` 别名路由）；Docker内nginx直接代理reading和tts服务（nginx侧剥去 `/api/tts/` 前缀）。
 
 ## 阅读功能
 

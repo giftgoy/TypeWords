@@ -1,6 +1,7 @@
 import { onBeforeUnmount, watch } from 'vue'
 import { PronunciationApi } from '../config/env.ts'
 import { getVoicesAsync } from '../hooks/sound.ts'
+import { withAppBaseURL } from '../utils/base-url.ts'
 import type { Word } from '../types/types.ts'
 import { useBaseStore } from '../stores/base.ts'
 import { useSettingStore } from '../stores/setting.ts'
@@ -10,8 +11,8 @@ import { buildListeningQueue, stepQueueIndex, type ListeningScope } from './list
 /**
  * 磨耳朵播放引擎：一个词一个词地读，单词 → 停顿 → 中文释义 → 停顿 → 例句 → 停顿 → 下一个。
  *
- * - 单词用有道词典音源（和练习页一致），失败退到系统语音；
- * - 释义/例句用系统语音（中文/英文分别挑声音）；
+ * - 单词用有道词典音源（和练习页一致），失败退到 TTS 再退系统语音；
+ * - 释义/例句优先走本地 kokoro TTS（中文释义 zf_001、例句按口音选 en 音色），失败退到系统语音；
  * - 所有播放共用一个 HTMLAudioElement，切换词时先 cancel 再放；
  * - 每次操作都换 token，旧的异步链自然作废，不会出现两个词重叠读。
  */
@@ -116,7 +117,43 @@ export function useWordListening() {
     )
   }
 
-  async function speak(text: string, lang: 'en' | 'zh', volume: number): Promise<boolean> {
+  /** 本地 kokoro 音色：例句按口音设置（美音 Maple / 英音 Vale），中文释义固定 zf_001 */
+  function kokoroVoice(lang: 'en' | 'zh') {
+    if (lang === 'zh') return 'zf_001'
+    return setting.soundType === 'uk' ? 'bf_vale' : 'af_maple'
+  }
+
+  /** 在线 kokoro TTS：播完/失败都以布尔返回，供上层回退 */
+  function speakOnline(text: string, lang: 'en' | 'zh', volume: number): Promise<boolean> {
+    const element = ensureAudio()
+    if (!element) return Promise.resolve(false)
+    const query = new URLSearchParams({ text, voice: kokoroVoice(lang) })
+    return new Promise<boolean>(resolve => {
+      let settled = false
+      const finish = (ok: boolean) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        element.onended = null
+        element.onerror = null
+        resolve(ok)
+      }
+      const timer = setTimeout(() => finish(false), 20000)
+      element.onended = () => finish(true)
+      element.onerror = () => finish(false)
+      try {
+        element.src = `${withAppBaseURL('/api/tts/speak')}?${query}`
+        element.volume = volume
+        element.playbackRate = rate()
+        void element.play().catch(() => finish(false))
+      } catch {
+        finish(false)
+      }
+    })
+  }
+
+  /** 系统语音兜底：speechSynthesis 念一遍 */
+  async function speakWithSystem(text: string, lang: 'en' | 'zh', volume: number): Promise<boolean> {
     if (!text.trim() || typeof speechSynthesis === 'undefined') return false
     const voices = await getVoicesAsync()
     const message = new SpeechSynthesisUtterance(text)
@@ -149,7 +186,14 @@ export function useWordListening() {
     })
   }
 
-  /** 单词发音：先用词典音源，拿不到或有声无音就换系统语音 */
+  /** 统一入口：先走本地 kokoro TTS，拿不到（服务没起/失败/无音频）再退系统语音 */
+  async function speak(text: string, lang: 'en' | 'zh', volume: number): Promise<boolean> {
+    if (!text.trim()) return false
+    if (await speakOnline(text, lang, volume)) return true
+    return speakWithSystem(text, lang, volume)
+  }
+
+  /** 单词发音：先用词典音源，拿不到或有声无音就换 TTS/系统语音 */
   async function pronounce(word: string): Promise<boolean> {
     const element = ensureAudio()
     if (!element) return speak(word, 'en', wordVolume())

@@ -88,7 +88,7 @@ const currentTtsVoice = computed({
 const selectedVoiceAvailable = computed(
   () =>
     !currentTtsVoice.value ||
-    onlineVoices.value.some(v => 'edge:' + v.id === currentTtsVoice.value) ||
+    onlineVoices.value.some(v => 'kokoro:' + v.id === currentTtsVoice.value) ||
     ttsVoiceList.value.some(v => v.name === currentTtsVoice.value)
 )
 const exampleText = ref('How are you? I am fine, thank you. And you?')
@@ -200,7 +200,7 @@ function previewTtsVoice() {
       <select id="tts-voice" v-model="currentTtsVoice" class="tts-select" :disabled="voicesLoading">
         <option value="">{{ $t('tts_auto_voice') }}</option>
         <optgroup v-if="onlineVoices.length" :label="$t('tts_natural_voices')">
-          <option v-for="voice in onlineVoices" :key="voice.id" :value="'edge:' + voice.id">
+          <option v-for="voice in onlineVoices" :key="voice.id" :value="'kokoro:' + voice.id">
             {{ voiceLabel(voice) }}
           </option>
         </optgroup>

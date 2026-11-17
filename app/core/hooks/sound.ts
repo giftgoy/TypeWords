@@ -377,7 +377,8 @@ export function useTTsPlayAudio() {
       volume: options.volume ?? settingStore.wordSoundVolume / 100,
       lang: options.lang ?? (settingStore.soundType === 'uk' ? 'en-GB' : 'en-US'),
     }
-    const selected = options.voice ?? settingStore.ttsVoiceMap?.find(v => v.key === getBrowserKey())?.voice ?? ''
+    const rawSelected = options.voice ?? settingStore.ttsVoiceMap?.find(v => v.key === getBrowserKey())?.voice ?? ''
+    const selected = rawSelected.startsWith('kokoro:') ? rawSelected.slice('kokoro:'.length) : rawSelected
     const legacy = () => playNetworkTts(text, resolved, generation)
     const playSystem = async () => {
       const voices = await getVoicesAsync()
@@ -409,12 +410,16 @@ export function useTTsPlayAudio() {
       speechSynthesis.resume()
       speechSynthesis.speak(msg)
     }
-    // Existing system voice selections remain valid. Automatic mode prefers natural voices.
-    if (selected && !selected.startsWith('edge:')) return playSystem()
+    // 本地 kokoro TTS：选过音色（kokoro: 前缀）按用户选择播；
+    // 旧版 edge: 前缀的历史选择按「未设置」处理（音色 id 已随引擎切换）。
+    // 自动模式按 accent（us/uk）+ 女声优先取在线音色。
+    if (rawSelected && !rawSelected.startsWith('kokoro:')) return playSystem()
     const onlineVoices = await getOnlineTtsVoices()
     if (generation !== ttsPlaybackGeneration) return
     const voice =
-      onlineVoices.find(v => 'edge:' + v.id === selected) ??
+      (rawSelected.startsWith('kokoro:')
+        ? onlineVoices.find(v => v.id === rawSelected.slice('kokoro:'.length))
+        : undefined) ??
       onlineVoices.find(v => v.lang === resolved.lang && v.gender === 'female')
     if (!voice) return playSystem()
     const query = new URLSearchParams({ text, voice: voice.id })

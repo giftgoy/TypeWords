@@ -78,7 +78,7 @@ export function useReaderAudio(article: () => Article) {
       } else {
         const key = segment.text
         if (!cache.has(key)) {
-          const query = new URLSearchParams({ text: key, voice: 'en-US-AriaNeural' })
+          const query = new URLSearchParams({ text: key, voice: 'af_maple' })
           const response = await fetch(withAppBaseURL(`/api/tts/speak?${query}`), { signal: controller.signal })
           if (!response.ok || !response.headers.get('content-type')?.startsWith('audio/')) throw new Error('TTS unavailable')
           const blob = await response.blob()

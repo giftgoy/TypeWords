@@ -18,7 +18,6 @@ import { estimateSpeechSeconds, totalSpeechSeconds, type SentenceSpan } from './
 export type SpeechState = 'idle' | 'loading' | 'playing' | 'paused'
 export type SpeechEngine = 'natural' | 'browser'
 
-const TTS_VOICE = 'en-US-AriaNeural'
 const MIN_RATE = 0.5
 const MAX_RATE = 3
 
@@ -39,6 +38,9 @@ export function useArticleSpeech(script: () => SentenceSpan[]) {
   let controller: AbortController | null = null
   let networkOk = true
   const cache = new Map<string, string>()
+
+  /** 本地 kokoro TTS 音色：按口音设置选择（美音 Maple / 英音 Vale） */
+  const ttsVoice = () => (setting.soundType === 'uk' ? 'bf_vale' : 'af_maple')
 
   const rate = computed({
     get: () => Math.min(MAX_RATE, Math.max(MIN_RATE, setting.articleSoundSpeed || 1)),
@@ -114,15 +116,17 @@ export function useArticleSpeech(script: () => SentenceSpan[]) {
     playAt(next)
   }
 
-  /** 取在线语音音频（同句只请求一次） */
+  /** 取在线语音音频（同句只请求一次；缓存 key 带音色，切口音后重新取） */
   async function audioUrlFor(text: string, ticket: number): Promise<string> {
-    const cached = cache.get(text)
+    const voice = ttsVoice()
+    const cacheKey = `${voice}:${text}`
+    const cached = cache.get(cacheKey)
     if (cached) return cached
     controller?.abort()
     controller = new AbortController()
     const timeoutId = setTimeout(() => controller?.abort(), 8000)
     try {
-      const query = new URLSearchParams({ text, voice: TTS_VOICE })
+      const query = new URLSearchParams({ text, voice })
       const response = await fetch(withAppBaseURL(`/api/tts/speak?${query}`), { signal: controller.signal })
       if (ticket !== generation) throw new Error('stale')
       if (!response.ok || !response.headers.get('content-type')?.startsWith('audio/')) throw new Error('tts-unavailable')
@@ -131,7 +135,7 @@ export function useArticleSpeech(script: () => SentenceSpan[]) {
         URL.revokeObjectURL(url)
         throw new Error('stale')
       }
-      cache.set(text, url)
+      cache.set(cacheKey, url)
       return url
     } finally {
       clearTimeout(timeoutId)

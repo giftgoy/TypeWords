@@ -425,7 +425,7 @@ async function endToday() {
               <button
                 class="gp-button"
                 :disabled="audioBusy"
-                @click="playAudio('/api/tts/speak?voice=en-US-AriaNeural&text=' + w.word)"
+                @click="playAudio('/api/tts/speak?voice=af_maple&text=' + w.word)"
               >
                 听发音
               </button>

@@ -184,8 +184,8 @@ export default defineNuxtConfig({
         changeOrigin: false,
       },
       '/api/tts/': {
-        target: 'http://127.0.0.1:5567/api/tts/',
-        changeOrigin: true,
+        target: 'http://127.0.0.1:7021/',
+        changeOrigin: false,
       },
       '/baidu': {
         target: 'https://api.fanyi.baidu.com/api/trans/vip/translate',

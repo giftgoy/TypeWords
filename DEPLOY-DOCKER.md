@@ -125,27 +125,28 @@ GITHUB_SNAPSHOT_DIR=typewords/daily
 执行 `docker compose up -d --build` 会同时启动 `typewords` 和 `typewords-tts`。
 在「设置 → 音效设置 → TTS 音色」中可选择：
 
-- Aria：美音女声；Guy：美音男声。
-- Sonia：英音女声；Ryan：英音男声。
-- 自动推荐：跟随美音／英音设置，优先选择自然女声。
+- Maple：美音女声；Sol：美音女声。
+- Vale：英音女声。
+- 自动推荐：跟随美音／英音设置，优先选择女声。
 - 浏览器提供的英文系统音色：保留原有选择。
 
 试听文本可编辑，支持停止试听，沿用例句音量和倍速。
 所选音色用于例句以及没有原声录音的文章，单词原声不变。
-自然人声通过 [edge-tts](https://github.com/rany2/edge-tts) 调用微软在线语音服务，
-需要容器能够访问互联网，合成的文本会发送至该服务，无需配置 API Key。
-重复请求的音频可在浏览器缓存一天。
+自然人声通过本地 [kokoro-tts](https://github.com/k2-fsa/sherpa-onnx)（sherpa-onnx 离线推理）合成，
+模型挂载自 `../kokoro-tts/models`（多语种 v1.1，约 348MB），完全离线、不访问互联网；
+磨耳朵的中文释义朗读也走同一服务（音色 zf_001）。
+重复请求的音频可在服务内缓存（256 条）。
 
-TTS 容器仅在 Compose 内部提供 8000 端口，通过 Nginx `/api/tts/` 同源代理访问。
+TTS 容器在宿主机映射 `127.0.0.1:7021`（开发直连用），Compose 内部仍为 8000，通过 Nginx `/api/tts/` 同源代理访问。
 未启动 TTS 服务的纯静态部署仍可使用浏览器系统音色和原有在线发音回退。
 服务异常时会自动尝试系统音色，再尝试原有在线音频；试听失败会显示错误提示。
 
 验证命令：
 
 ```powershell
-node scripts/test-tts.mjs
-# 需已安装 edge-tts 与 aiohttp 的 Python 环境
-python -m unittest discover -s deploy/tts -p test_server.py -v
+# 模型文件需位于 ../kokoro-tts/models/kokoro-multi-lang-v1_1/
+curl "http://127.0.0.1:7021/voices"
+curl -o NUL -w "%{http_code} %{content_type}\n" "http://127.0.0.1:7021/speak?text=hello&voice=af_maple"
 docker compose logs --tail=30 tts
 ```
 
