@@ -88,8 +88,9 @@ export function seededShuffle<T>(items: T[], seed: number): T[] {
 /**
  * 词表 → 队列：按小写单词去重，丢弃没有释义也没有例句的空词条。
  * 只有 'sequence'/'random' 影响排序；'new'/'due' 在这里按顺序排，过滤在引擎层做。
+ * limit：每轮最多收多少个词，0 表示全部；随机排序时先洗牌再截取，等价于随机抽样。
  */
-export function buildListeningQueue(words: Word[], order: ListeningOrder = 'sequence', seed = 1): ListeningItem[] {
+export function buildListeningQueue(words: Word[], order: ListeningOrder = 'sequence', seed = 1, limit = 0): ListeningItem[] {
   const seen = new Set<string>()
   const items: ListeningItem[] = []
   for (const word of words ?? []) {
@@ -100,7 +101,8 @@ export function buildListeningQueue(words: Word[], order: ListeningOrder = 'sequ
     seen.add(key)
     items.push(item)
   }
-  return order === 'random' ? seededShuffle(items, seed) : items
+  const queue = order === 'random' ? seededShuffle(items, seed) : items
+  return limit > 0 ? queue.slice(0, limit) : queue
 }
 
 /** 队列内前后翻，越界就绕回另一头（磨耳朵本来就要一直循环） */

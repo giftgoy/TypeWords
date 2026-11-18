@@ -9,6 +9,8 @@ import type { ListeningItem, ListeningOrder, ListeningScope } from '../word/list
 export interface ListeningOptions {
   scope: ListeningScope
   order: ListeningOrder
+  /** 每轮最多听多少个词，0 表示全部（当前词库几千个词不该一口气全听） */
+  limit: number
   /** 读完单词后读中文释义 */
   readMeaning: boolean
   /** 读例句（rotateExample 关闭时恒读第一句） */
@@ -49,6 +51,7 @@ const OPTIONS_KEY = 'typewords:listening-options'
 export const getDefaultListeningOptions = (): ListeningOptions => ({
   scope: 'current',
   order: 'sequence',
+  limit: 20,
   readMeaning: true,
   readExample: false,
   readChunk: false,
@@ -67,6 +70,7 @@ function loadOptions(): ListeningOptions {
     return {
       ...defaults,
       ...parsed,
+      limit: clamp(Number(parsed.limit ?? defaults.limit), 0, 10000),
       pauseSeconds: clamp(Number(parsed.pauseSeconds ?? defaults.pauseSeconds), 0, 10),
       rate: clamp(Number(parsed.rate ?? defaults.rate), 0.5, 2),
     }

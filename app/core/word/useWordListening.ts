@@ -135,8 +135,14 @@ export function useWordListening() {
           order === 'new' ? '这个范围里还没有未学的单词，先听全部。' : '这个范围里今天没有到期的单词，先听全部。'
       }
     }
-    // 随机排序用会话内固定种子，切选项重建队列时顺序不再乱跳
-    const queue = buildListeningQueue(queueWords, order, order === 'random' ? listening.ensureQueueSeed() : 1)
+    // 随机排序用会话内固定种子，切选项重建队列时顺序不再乱跳；
+    // limit（每轮数量）在排序之后截取：随机时等价于随机抽样，顺序时取前 N 个
+    const queue = buildListeningQueue(
+      queueWords,
+      order,
+      order === 'random' ? listening.ensureQueueSeed() : 1,
+      listening.options.limit
+    )
     listening.setQueue(queue)
     if (reset) listening.setIndex(0)
     if (queue.length) {
@@ -455,9 +461,9 @@ export function useWordListening() {
     void playCurrent()
   }
 
-  // 换范围/顺序要重建队列；正在播的话从新队列第一个继续
+  // 换范围/顺序/每轮数量要重建队列；正在播的话从新队列第一个继续
   watch(
-    () => [listening.options.scope, listening.options.order],
+    () => [listening.options.scope, listening.options.order, listening.options.limit],
     () => {
       const wasPlaying = listening.playing
       rebuildQueue(true)

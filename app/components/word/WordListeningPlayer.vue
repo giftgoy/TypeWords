@@ -36,6 +36,8 @@ const ORDERS: { value: ListeningOrder; label: string }[] = [
 ]
 const PAUSES = [0, 1, 2, 3, 5]
 const RATES = [0.6, 0.8, 1, 1.2, 1.5]
+/** 每轮数量：0 表示全部（词库几千个词不该一口气全听） */
+const LIMITS = [10, 20, 50, 100, 200, 0]
 
 const current = computed(() => listening.current)
 const stageLabel = computed(
@@ -109,6 +111,9 @@ function changePause(event: Event) {
 }
 function changeRate(event: Event) {
   listening.setOptions({ rate: Number((event.target as HTMLSelectElement).value) })
+}
+function changeLimit(event: Event) {
+  listening.setOptions({ limit: Number((event.target as HTMLSelectElement).value) })
 }
 </script>
 
@@ -222,6 +227,12 @@ function changeRate(event: Event) {
           顺序
           <select :value="listening.options.order" @change="changeOrder">
             <option v-for="item in ORDERS" :key="item.value" :value="item.value">{{ item.label }}</option>
+          </select>
+        </label>
+        <label>
+          数量
+          <select :value="listening.options.limit" @change="changeLimit">
+            <option v-for="value in LIMITS" :key="value" :value="value">{{ value ? value + ' 个' : '全部' }}</option>
           </select>
         </label>
         <label>

@@ -66,6 +66,23 @@ test('随机模式是确定性的：同一个 seed 得到同一个顺序', () =>
   assert.deepEqual([...first].sort(), words.map(item => item.word).sort())
 })
 
+test('limit 只截取每轮数量：顺序取前 N 个，随机是随机抽样', () => {
+  const words = Array.from({ length: 30 }, (_, index) => word({ word: `word${index}` }))
+  const all = buildListeningQueue(words, 'sequence', 1)
+  assert.equal(buildListeningQueue(words, 'sequence', 1, 0).length, 30)
+  assert.deepEqual(
+    buildListeningQueue(words, 'sequence', 1, 10).map(item => item.word),
+    all.slice(0, 10).map(item => item.word)
+  )
+  const sampled = buildListeningQueue(words, 'random', 42, 10)
+  assert.equal(sampled.length, 10)
+  // 抽样必须来自同一洗牌结果的前缀，同一 seed 下可复现
+  assert.deepEqual(
+    sampled.map(item => item.word),
+    buildListeningQueue(words, 'random', 42, 0).slice(0, 10).map(item => item.word)
+  )
+})
+
 test('seededShuffle 不修改入参', () => {
   const source = [1, 2, 3, 4]
   const shuffled = seededShuffle(source, 9)
