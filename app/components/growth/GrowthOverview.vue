@@ -4,7 +4,6 @@ import { useGrowthStore, dictionaryGrowthId } from '@/core/stores/growth'
 import { useBaseStore } from '@/core/stores/base'
 import { Toast } from '@/base'
 import { GROWTH_STAGES, formatGrowthGap, milestoneFeedback } from '@/core/growth/presentation'
-import DictionaryMilestones from './DictionaryMilestones.vue'
 
 const growth = useGrowthStore()
 const base = useBaseStore()
@@ -108,7 +107,6 @@ onUnmounted(() => clearInterval(interval))
         >{{ growth.current ? '继续我的成长任务' : '选择 5 词开始' }} <span aria-hidden="true">→</span></NuxtLink
       >
     </div>
-    <DictionaryMilestones v-if="plan" :plan="plan" class="overview-milestones" />
   </section>
 </template>
 
@@ -213,12 +211,6 @@ details {
 summary {
   cursor: pointer;
 }
-.overview-milestones {
-  flex: 1;
-  min-width: min(100%, 300px);
-  border-left: 1px solid var(--color-line);
-  padding-left: 26px;
-}
 .growth-error {
   color: #b65d3d;
 }
@@ -233,11 +225,6 @@ summary {
   .growth-overview {
     padding: 18px;
     gap: 20px;
-  }
-  .overview-milestones {
-    border-left: 0;
-    border-top: 1px solid var(--color-line);
-    padding: 20px 0 0;
   }
   .evidence-dots {
     gap: 5px;

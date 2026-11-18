@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import GrowthOverview from '@/components/growth/GrowthOverview.vue'
-import { useGrowthStore } from '@/core/stores/growth'
+import { dictionaryGrowthId, useGrowthStore } from '@/core/stores/growth'
+import DictionaryMilestones from '@/components/growth/DictionaryMilestones.vue'
 import { useBaseStore } from '@/core/stores/base.ts'
 import { useRouter } from 'vue-router'
 import {
@@ -65,6 +66,7 @@ import { countPracticeWords, getReviewWordLimit } from '@/core/utils/learning-gu
 const guide = useLearningGuide()
 const store = useBaseStore()
 const settingStore = useSettingStore()
+const growthStore = useGrowthStore()
 const wordPersistence = usePracticeWordPersistence()
 const dataSync = useDataSyncPersistence()
 const router = useRouter()
@@ -561,6 +563,12 @@ const systemPracticeText = $computed(() => {
 const taskWordCount = $computed(() =>
   countPracticeWords(practiceData.taskWords, settingStore.wordPracticeMode === WordPracticeMode.Review)
 )
+// 当前词典的本轮逐词学习里程碑（计划由 GrowthOverview 在页面加载时创建）
+let dictPlan = $computed(
+  () =>
+    growthStore.state.plans[dictionaryGrowthId(store.sdict)] ||
+    Object.values(growthStore.state.plans).at(-1)
+)
 const hasFreePracticeWords = $computed(() =>
   store.sdict.words.some(word => !store.getIgnoreWordsSet().has(word.word.trim().toLowerCase()))
 )
@@ -577,6 +585,14 @@ watch([() => settingStore.ignoreSimpleWord, () => store.simpleWords.join('\n')],
 let isOldHost = $ref(false)
 onMounted(() => {
   isOldHost = window.location.host === Old_Host
+  // 进入页面就把当前词典的成长计划建好（GrowthOverview 也会做，这里兜底，
+  // 保证词典卡片里的「本轮逐词学习记录」不依赖某个组件的加载时序）
+  void (async () => {
+    try {
+      await growthStore.load()
+      await growthStore.ensurePlan(store.sdict, store.getIgnoreWordsSet())
+    } catch { /* 里程碑显示不出来时静默，不影响练习 */ }
+  })()
 })
 
 onUnmounted(() => {
@@ -633,6 +649,9 @@ onUnmounted(() => {
             </div>
             <div v-if="crossDictLearnedCount > 0" class="text-xs color-gray">
               {{ $t('cross_dict_hint', { n: crossDictLearnedCount }) }}
+            </div>
+            <div v-if="dictPlan" class="dict-card-milestones mt-4 pt-3" style="border-top: 1px solid var(--color-line)">
+              <DictionaryMilestones :plan="dictPlan" />
             </div>
           </div>
           <div class="flex items-center mt-4 gap-4">
@@ -956,6 +975,10 @@ onUnmounted(() => {
 </template>
 
 <style scoped lang="scss">
+// 里程碑块嵌在词典卡片里，卡片标题已是词典名，组件里的同名标题不重复显示
+.dict-card-milestones :deep(.milestone-heading strong) {
+  display: none;
+}
 .stat {
   @apply w-49% box-border flex flex-col items-center justify-center rounded-xl p-2 bg-[var(--bg-history)];
   border: 1px solid gainsboro;
