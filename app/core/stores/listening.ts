@@ -11,6 +11,10 @@ export interface ListeningOptions {
   order: ListeningOrder
   /** 每轮最多听多少个词，0 表示全部（当前词库几千个词不该一口气全听） */
   limit: number
+  /** 从哪个词开始（队列序），空串 = 第一个 */
+  startWord: string
+  /** 听到哪个词为止（含），空串 = 队尾（循环）；设了终点播完最后一个就停 */
+  endWord: string
   /** 读完单词后读中文释义 */
   readMeaning: boolean
   /** 读例句（rotateExample 关闭时恒读第一句） */
@@ -52,6 +56,8 @@ export const getDefaultListeningOptions = (): ListeningOptions => ({
   scope: 'current',
   order: 'sequence',
   limit: 20,
+  startWord: '',
+  endWord: '',
   readMeaning: true,
   readExample: false,
   readChunk: false,
@@ -67,9 +73,12 @@ function loadOptions(): ListeningOptions {
     const raw = localStorage.getItem(OPTIONS_KEY)
     if (!raw) return defaults
     const parsed = JSON.parse(raw) as Partial<ListeningOptions>
+    const str = (value: unknown) => (typeof value === 'string' ? value : '')
     return {
       ...defaults,
       ...parsed,
+      startWord: str(parsed.startWord),
+      endWord: str(parsed.endWord),
       limit: clamp(Number(parsed.limit ?? defaults.limit), 0, 10000),
       pauseSeconds: clamp(Number(parsed.pauseSeconds ?? defaults.pauseSeconds), 0, 10),
       rate: clamp(Number(parsed.rate ?? defaults.rate), 0.5, 2),

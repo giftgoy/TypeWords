@@ -111,3 +111,25 @@ export function stepQueueIndex(current: number, total: number, step: 1 | -1): nu
   const next = (current + step) % total
   return next < 0 ? next + total : next
 }
+
+/**
+ * 起点/终点/每轮数量统一切队：
+ * - startWord：从队列里这个词开始（按小写找，找不到就从第一个开始）；
+ * - endWord：截到这个词为止（含），必须在起点之后，否则忽略；
+ * - limit：没有终点时，从起点起最多听多少个（0 = 一直听到队尾）。
+ * 终点优先于数量；找不到起点就当从第一个开始，保证结果永不为空。
+ */
+export function sliceQueueRange(items: ListeningItem[], startWord = '', endWord = '', limit = 0): ListeningItem[] {
+  if (!items.length) return []
+  const normalize = (value: string) => value.trim().toLowerCase()
+  let startIdx = startWord ? items.findIndex(item => item.word.toLowerCase() === normalize(startWord)) : 0
+  if (startIdx < 0) startIdx = 0
+  let endIdx = -1
+  if (endWord) {
+    const found = items.findIndex(item => item.word.toLowerCase() === normalize(endWord))
+    if (found >= startIdx) endIdx = found
+  }
+  if (endIdx >= startIdx) return items.slice(startIdx, endIdx + 1)
+  if (limit > 0) return items.slice(startIdx, startIdx + limit)
+  return startIdx > 0 ? items.slice(startIdx) : items
+}

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   buildListeningQueue,
   seededShuffle,
+  sliceQueueRange,
   stepQueueIndex,
   toListeningItem,
 } from '../app/core/word/listening-queue.ts'
@@ -88,6 +89,30 @@ test('seededShuffle 不修改入参', () => {
   const shuffled = seededShuffle(source, 9)
   assert.deepEqual(source, [1, 2, 3, 4])
   assert.deepEqual([...shuffled].sort(), [1, 2, 3, 4])
+})
+
+test('起点/终点/数量切队：起点生效、终点含头含尾、终点优先于数量、非法输入安全回退', () => {
+  const words = Array.from({ length: 10 }, (_, index) => word({ word: `w${index}` }))
+  const queue = buildListeningQueue(words, 'sequence', 1)
+  const names = items => items.map(item => item.word)
+  // 无参数 = 原队列
+  assert.deepEqual(names(sliceQueueRange(queue)), names(queue))
+  // 起点：从 w3 开始听到队尾
+  assert.deepEqual(names(sliceQueueRange(queue, 'w3')), ['w3', 'w4', 'w5', 'w6', 'w7', 'w8', 'w9'])
+  // 起点 + 数量：数量从起点起算
+  assert.deepEqual(names(sliceQueueRange(queue, 'w3', '', 2)), ['w3', 'w4'])
+  // 起点 + 终点：含头含尾，数量让位
+  assert.deepEqual(names(sliceQueueRange(queue, 'w2', 'w5', 3)), ['w2', 'w3', 'w4', 'w5'])
+  // 只设终点：从队首听到终点
+  assert.deepEqual(names(sliceQueueRange(queue, '', 'w1')), ['w0', 'w1'])
+  // 终点在起点之前 → 忽略终点，按数量截
+  assert.deepEqual(names(sliceQueueRange(queue, 'w5', 'w2', 2)), ['w5', 'w6'])
+  // 起点词不在队列里 → 从第一个开始
+  assert.deepEqual(names(sliceQueueRange(queue, 'nope', '', 2)), ['w0', 'w1'])
+  // 大小写不敏感匹配
+  assert.deepEqual(names(sliceQueueRange(queue, 'W3', '', 1)), ['w3'])
+  // 空队列不炸
+  assert.deepEqual(sliceQueueRange([]), [])
 })
 
 test('前后翻页在边界处绕回，空队列保持 0', () => {

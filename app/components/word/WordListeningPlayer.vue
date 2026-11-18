@@ -115,6 +115,12 @@ function changeRate(event: Event) {
 function changeLimit(event: Event) {
   listening.setOptions({ limit: Number((event.target as HTMLSelectElement).value) })
 }
+function changeStart(event: Event) {
+  listening.setOptions({ startWord: (event.target as HTMLSelectElement).value })
+}
+function changeEnd(event: Event) {
+  listening.setOptions({ endWord: (event.target as HTMLSelectElement).value })
+}
 </script>
 
 <template>
@@ -233,6 +239,24 @@ function changeLimit(event: Event) {
           数量
           <select :value="listening.options.limit" @change="changeLimit">
             <option v-for="value in LIMITS" :key="value" :value="value">{{ value ? value + ' 个' : '全部' }}</option>
+          </select>
+        </label>
+        <label>
+          起点
+          <select :value="listening.options.startWord" @change="changeStart" :title="'从队列中的哪个词开始听'">
+            <option value="">第 1 个开始</option>
+            <option v-for="(item, index) in player.baseItems.value" :key="'s-' + item.word" :value="item.word">
+              {{ index + 1 }}. {{ item.word }}
+            </option>
+          </select>
+        </label>
+        <label>
+          终点
+          <select :value="listening.options.endWord" @change="changeEnd" :title="'听到哪个词为止（播完就停）'">
+            <option value="">听到最后（循环）</option>
+            <option v-for="(item, index) in player.baseItems.value" :key="'e-' + item.word" :value="item.word">
+              {{ index + 1 }}. {{ item.word }}
+            </option>
           </select>
         </label>
         <label>

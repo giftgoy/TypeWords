@@ -1,4 +1,4 @@
-import { onBeforeUnmount, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import { PronunciationApi } from '../config/env.ts'
 import { cancelTtsAudio, getVoicesAsync, useTTsPlayAudio } from '../hooks/sound.ts'
@@ -8,6 +8,7 @@ import { useSettingStore } from '../stores/setting.ts'
 import { useListeningStore } from '../stores/listening.ts'
 import {
   buildListeningQueue,
+  sliceQueueRange,
   stepQueueIndex,
   type ListeningItem,
   type ListeningOrder,
@@ -58,6 +59,8 @@ export function useWordListening() {
   let lastResumeAt = 0
   /** MediaSession 的按键 handler 是否已经设置过（幂等保护） */
   let mediaSessionReady = false
+  /** 起点/终点下拉的候选：切完范围/顺序/数量后的完整队列（截取前），播放器据此渲染选项 */
+  const baseItems = ref<ListeningItem[]>([])
 
   function ensureAudio(): HTMLAudioElement | null {
     if (typeof Audio === 'undefined') return null
@@ -135,12 +138,20 @@ export function useWordListening() {
           order === 'new' ? '这个范围里还没有未学的单词，先听全部。' : '这个范围里今天没有到期的单词，先听全部。'
       }
     }
-    // 随机排序用会话内固定种子，切选项重建队列时顺序不再乱跳；
-    // limit（每轮数量）在排序之后截取：随机时等价于随机抽样，顺序时取前 N 个
-    const queue = buildListeningQueue(
+    // 先建完整队列（洗牌也在这里），再按 起点/终点/每轮数量 截取：
+    // 数量从起点起算，「从第 500 个词开始听 20 个」就是这么做出来的；
+    // 设了终点就按终点截（数量让位），播放器读完终点那个词会停下来
+    const full = buildListeningQueue(
       queueWords,
       order,
       order === 'random' ? listening.ensureQueueSeed() : 1,
+      0
+    )
+    baseItems.value = full
+    const queue = sliceQueueRange(
+      full,
+      listening.options.startWord,
+      listening.options.endWord,
       listening.options.limit
     )
     listening.setQueue(queue)
@@ -360,6 +371,15 @@ export function useWordListening() {
     await delay(Math.max(0, listening.options.pauseSeconds) * 1000)
     if (myToken !== token || !listening.playing) return
 
+    // 设了结束词：读完队列最后一个（就是终点词）就停，不再循环
+    if (listening.options.endWord && listening.index >= listening.items.length - 1) {
+      const last = listening.items[listening.index]
+      listening.setPlaying(false)
+      listening.setStage('idle')
+      listening.setMessage(`已听到设定的结束词「${last?.word ?? ''}」，本轮磨耳朵结束。`)
+      syncMediaPlaybackState()
+      return
+    }
     listening.setIndex(stepQueueIndex(listening.index, listening.items.length, 1))
     void playCurrent()
   }
@@ -461,9 +481,9 @@ export function useWordListening() {
     void playCurrent()
   }
 
-  // 换范围/顺序/每轮数量要重建队列；正在播的话从新队列第一个继续
+  // 换范围/顺序/每轮数量/起点/终点要重建队列；正在播的话从新队列第一个继续
   watch(
-    () => [listening.options.scope, listening.options.order, listening.options.limit],
+    () => [listening.options.scope, listening.options.order, listening.options.limit, listening.options.startWord, listening.options.endWord],
     () => {
       const wasPlaying = listening.playing
       rebuildQueue(true)
@@ -519,5 +539,7 @@ export function useWordListening() {
     prev: () => step(-1),
     rebuildQueue,
     spokenMeaning,
+    /** 起点/终点下拉的候选列表（切范围/顺序后的完整队列） */
+    baseItems,
   }
 }
